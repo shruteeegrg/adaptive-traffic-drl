@@ -12,7 +12,10 @@ signal phases at a simulated urban intersection in
 compares its performance against a standard fixed-time controller.
 
 See `Project_Proposal.pdf` (Part 1) for the full abstract, objectives, and
-risk analysis.
+risk analysis, and `DELIVERABLES.md` for the finalized list of five
+deliverables (contextual report, simulation environment, RL agent code,
+performance dashboard, comparative analysis) mapped to concrete files and
+"definition of done" criteria.
 
 ## Repository structure
 
