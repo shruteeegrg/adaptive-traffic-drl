@@ -12,3 +12,5 @@ dependencies:
       - traci
       - sumolib
       - pandas
+      - pyyaml
+      - streamlit

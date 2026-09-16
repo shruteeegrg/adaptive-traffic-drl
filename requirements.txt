@@ -4,3 +4,5 @@ pandas
 torch
 traci
 sumolib
+pyyaml
+streamlit

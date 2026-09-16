@@ -1,0 +1,4 @@
+# Week 8: low-density traffic demand scenario for stress-testing.
+name: low_traffic
+description: Sparse vehicle demand to check the agent doesn't over-switch needlessly.
+route_file: null  # e.g. configs/intersection_low_traffic.rou.xml
