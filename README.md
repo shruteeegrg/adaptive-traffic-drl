@@ -11,24 +11,42 @@ signal phases at a simulated urban intersection in
 [SUMO (Simulation of Urban Mobility)](https://sumo.dlr.de/docs/), and
 compares its performance against a standard fixed-time controller.
 
+**The deliverable is a product, not a script:** `traffic_drl` is an
+installable, config-driven Python package with a CLI (`traffic-drl`) and
+an interactive demo app, not code hardcoded to one intersection file. See
+`DELIVERABLES.md` for the full breakdown — the product is deliverable #0,
+with the contextual report, dashboard, and final report as supporting
+evidence and documentation of it.
+
 See `Project_Proposal.pdf` (Part 1) for the full abstract, objectives, and
-risk analysis, and `DELIVERABLES.md` for the finalized list of five
-deliverables (contextual report, simulation environment, RL agent code,
-performance dashboard, comparative analysis) mapped to concrete files and
-"definition of done" criteria.
+risk analysis.
+
+## Quickstart (once built out — see plan below)
+
+```bash
+pip install -e .
+traffic-drl train --agent dqn --config configs/intersection.yaml
+traffic-drl compare --config configs/intersection.yaml --scenarios rush_hour,low_traffic
+traffic-drl demo   # launches the interactive Streamlit app
+```
 
 ## Repository structure
 
 ```
-src/
-  env/       SUMO/TraCI environment wrapper — network, routes, state/reward extraction
-  agent/     Q-table baseline + DQN agent (neural net, replay buffer, training loop)
-  baseline/  Fixed-time traffic controller for comparison
-  viz/       Dashboard / live plotting of reward, wait time, throughput
-configs/     SUMO network/route files, hyperparameter configs
-logs/        Weekly logs (what was done / plan for next week) — one file per week
-docs/        Contextual report, final report, comparative analysis
-tests/       Unit tests (agent, environment wrapper)
+traffic_drl/         installable package
+  cli.py              CLI entry point (train / evaluate / compare / demo)
+  env/                config-driven SUMO/TraCI environment wrapper
+  agent/              Q-table baseline + DQN agent (from scratch)
+  baseline/           fixed-time controller for comparison
+  viz/                shared plotting (reward, wait time, throughput)
+  app.py              interactive Streamlit demo app
+configs/              SUMO network/route files, hyperparameter + scenario configs
+  scenarios/          rush_hour.yaml, low_traffic.yaml, ...
+checkpoints/          trained model artifacts (gitignored, except a final shipped checkpoint)
+logs/                 weekly logs (what was done / plan for next week) — one file per week
+docs/                 contextual report, final report, comparative analysis
+tests/                unit tests (agent, environment wrapper)
+pyproject.toml        makes the repo `pip install -e`-able, defines the `traffic-drl` CLI
 ```
 
 ## Workflow
@@ -50,23 +68,23 @@ See `WORKFLOW.md` for full branch/PR conventions.
 
 | Week | Focus | Deliverable |
 |---|---|---|
-| 1 | Repo + environment setup | Repo live, collaborator added, Python env + SUMO/TraCI installed and pinned, first commit proving the env runs |
-| 2 | SUMO network construction | Hand-built single-intersection `.net.xml`/`.rou.xml`, TraCI script reading queue length/occupancy and forcing phase changes |
-| 3 | Baseline Q-table agent | Q-table RL agent on a simplified single-lane state space — de-risks convergence before scaling up |
-| 4 | State/reward design + NN architecture | Full intersection state/action/reward design; hand-written neural net (PyTorch/TF) unit-tested on dummy data |
-| 5 | DQN training loop | Replay buffer, target network, epsilon-greedy policy, backprop step — running end-to-end |
-| 6 | Training & convergence debugging | Reward-curve tracking, hyperparameter sweeps, model checkpointing |
-| 7 | Visualization module | Live dashboard: accumulated reward, average wait time, throughput |
-| 8 | Fixed-timer baseline + stress tests | Baseline controller implemented; "rush hour" / "low traffic" scenarios run against both controllers |
-| 9 | Comparative analysis | Aggregated metrics, statistical comparison, results section drafted |
-| 10 | Final report + cleanup | Final report complete, code cleaned up, final PR merged |
+| 1 | Repo + environment + package setup | Repo live, collaborator added, Python env + SUMO/TraCI installed and pinned, `pyproject.toml` + CLI skeleton (`traffic-drl` runs with stub subcommands) |
+| 2 | SUMO network + config schema | Hand-built single-intersection `.net.xml`/`.rou.xml`, YAML config schema for intersection layout, config-driven TraCI env wrapper (no hardcoded paths) |
+| 3 | Baseline Q-table agent | Q-table RL agent on a simplified single-lane state space, wired into `traffic-drl train --agent qtable` |
+| 4 | State/reward design + NN architecture | Full intersection state/action/reward design (config-driven hyperparams); hand-written neural net unit-tested on dummy data |
+| 5 | DQN training loop | Replay buffer, target network, epsilon-greedy policy, backprop step, wired into `traffic-drl train --agent dqn` |
+| 6 | Training & convergence debugging | Reward-curve tracking, hyperparameter sweeps, model checkpointing (`checkpoints/dqn_final.pt`) |
+| 7 | Visualization module | `traffic_drl/viz` — plots from saved logs, wired into `traffic-drl evaluate` |
+| 8 | Fixed-timer baseline + scenarios + demo app v1 | Baseline controller + `rush_hour`/`low_traffic` scenario configs; `traffic-drl compare` working; first working version of the Streamlit demo app |
+| 9 | Comparative analysis + app polish | Aggregated metrics via `traffic-drl compare`, statistical comparison, results section drafted; side-by-side view in the demo app |
+| 10 | Final report + product polish | Final report complete; fresh-clone `pip install -e .` + `traffic-drl demo` verified working end-to-end; final PR merged |
 
 ## Setup
 
 ```bash
 conda env create -f environment.yml
 conda activate traffic-drl
-# or: pip install -r requirements.txt
+pip install -e .
 ```
 
 Requires SUMO installed separately — see https://sumo.dlr.de/docs/Installing/index.html
@@ -76,13 +94,13 @@ and the `SUMO_HOME` environment variable set for TraCI to work.
 
 Progress checklist (tick off as PRs merge):
 
-- [ ] Week 1 — Repo & environment setup
-- [ ] Week 2 — SUMO network construction
+- [ ] Week 1 — Repo, environment & package setup
+- [ ] Week 2 — SUMO network + config schema
 - [ ] Week 3 — Baseline Q-table agent
 - [ ] Week 4 — State/reward design + NN architecture
 - [ ] Week 5 — DQN training loop
 - [ ] Week 6 — Training & convergence debugging
 - [ ] Week 7 — Visualization module
-- [ ] Week 8 — Fixed-timer baseline + stress tests
-- [ ] Week 9 — Comparative analysis
-- [ ] Week 10 — Final report + cleanup
+- [ ] Week 8 — Fixed-timer baseline + scenarios + demo app v1
+- [ ] Week 9 — Comparative analysis + app polish
+- [ ] Week 10 — Final report + product polish

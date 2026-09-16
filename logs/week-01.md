@@ -15,6 +15,8 @@
 - [ ] Install SUMO and TraCI, verify `SUMO_HOME` is set correctly
 - [ ] Commit a smoke-test script that launches a trivial SUMO simulation
   headlessly and confirms TraCI can connect
+- [ ] Add `pyproject.toml` and confirm `pip install -e .` + `traffic-drl`
+  CLI stub run cleanly from a fresh clone
 - [ ] Confirm everything above is committed and pushed to the repo
 
 ## Blockers / risks

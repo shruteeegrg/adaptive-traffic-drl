@@ -1,9 +1,34 @@
 # Deliverables
 
-Finalized from the project proposal's "Project deliverables" section. Five
-artifacts, each with a concrete location in this repo and a definition of
-"done." Nothing here is a web app or UI — it's a simulation, an agent, and
-the evidence that the agent works.
+The **product** is the primary deliverable: an installable, config-driven
+Adaptive Traffic Signal Controller with a CLI and an interactive demo app —
+not just a script that only runs on one hardcoded intersection. The
+contextual report, dashboard, and final report are evidence and
+documentation *of* the product, not the deliverable itself.
+
+## 0. The Product — `traffic_drl` package
+
+- **Where:** `traffic_drl/` (installable via `pip install -e .`,
+  `pyproject.toml` at repo root).
+- **What it is:** a Python package + CLI that can train, evaluate, and
+  compare an adaptive (DQN) traffic-signal controller against a fixed-time
+  baseline on any SUMO intersection described by a config file — your
+  intersection is the reference example/benchmark, not something baked
+  into the code.
+- **CLI surface:**
+  - `traffic-drl train --agent {qtable,dqn} --config configs/<name>.yaml`
+  - `traffic-drl evaluate --checkpoint checkpoints/dqn_final.pt --scenario configs/scenarios/rush_hour.yaml`
+  - `traffic-drl compare --config configs/<name>.yaml --scenarios rush_hour,low_traffic`
+  - `traffic-drl demo` — launches the interactive app
+- **Interactive demo app:** `traffic_drl/app.py` (Streamlit) — pick
+  Fixed-Timer or DQN Agent, pick a scenario, run it, watch wait
+  time/throughput/reward update live side by side.
+- **Shipped artifact:** a trained checkpoint (`checkpoints/dqn_final.pt`)
+  committed (or attached as a release asset) so the product is runnable
+  without retraining from zero.
+- **Done when:** someone who clones the repo, runs `pip install -e .`, and
+  has SUMO installed can run `traffic-drl demo` and get a working
+  comparison — without editing any source file, only a config.
 
 ## 1. Contextual Report (Literature Review + Testing)
 
@@ -15,40 +40,47 @@ the evidence that the agent works.
 - **Done when:** it justifies *why* DQN + SUMO over the alternatives, not
   just describes them.
 
-## 2. Simulation Environment
+## 2. Simulation Environment (part of the product)
 
-- **Where:** `configs/intersection.net.xml`, `configs/routes.rou.xml`,
-  `configs/*.sumocfg`, `src/env/` (TraCI wrapper).
+- **Where:** `configs/<intersection>.net.xml`, `configs/<intersection>.rou.xml`,
+  `configs/<intersection>.sumocfg`, `traffic_drl/env/` (TraCI wrapper).
 - **Content:** a hand-built single-intersection SUMO network with realistic
-  (or at least plausible) traffic demand, and a Python wrapper exposing
-  `reset()` / `step(action)` returning per-lane queue length / occupancy as
-  state.
-- **Done when:** the environment runs headlessly and repeatably, and state
-  extraction is verified against SUMO's own GUI/output for a few manual
-  spot checks.
+  (or at least plausible) traffic demand, and a config-driven Python
+  wrapper exposing `reset()` / `step(action)`, returning per-lane queue
+  length / occupancy as state, driven by a YAML config rather than
+  hardcoded paths/lane IDs.
+- **Done when:** the environment runs headlessly and repeatably from a
+  config file, and state extraction is verified against SUMO's own
+  GUI/output for a few manual spot checks.
 
-## 3. RL Agent Code
+## 3. RL Agent Code (part of the product)
 
-- **Where:** `src/agent/q_table_agent.py` (baseline), `src/agent/dqn_agent.py`
-  (network + replay buffer + target network + training loop).
+- **Where:** `traffic_drl/agent/q_table_agent.py` (baseline),
+  `traffic_drl/agent/dqn_agent.py` (network + replay buffer + target
+  network + training loop).
 - **Constraint:** implemented from scratch — no Stable-Baselines or
   equivalent high-level RL library, per the proposal.
 - **Done when:** the Q-table baseline converges on the simplified
   single-lane problem, and the DQN agent trains to a stable (not
   necessarily optimal) policy on the full intersection, with a saved
-  checkpoint (`checkpoints/dqn_final.pt`) and a logged reward curve.
+  checkpoint (`checkpoints/dqn_final.pt`) and a logged reward curve, both
+  reachable through `traffic-drl train`.
 
-## 4. Performance Dashboard
+## 4. Performance Dashboard (part of the product + report evidence)
 
-- **Where:** `src/viz/dashboard.py`.
+- **Where:** `traffic_drl/viz/` (shared plotting used by both the CLI's
+  saved-report output and the live Streamlit app).
 - **Content:** plots of accumulated reward, average wait time, and
-  throughput, over training and over evaluation runs.
-- **Done when:** it can render from a saved log file (not just live during
-  training), so results are reproducible without rerunning training.
+  throughput, over training and over evaluation runs — rendered live in
+  the app, and reproducibly from saved logs for the report.
+- **Done when:** the same plotting code backs both the live app view and
+  the static figures in the final report — one implementation, two
+  consumers.
 
 ## 5. Comparative Analysis (Final Report)
 
-- **Where:** `docs/final_report.md` (results + discussion sections).
+- **Where:** `docs/final_report.md` (results + discussion sections),
+  generated from `traffic-drl compare` output.
 - **Content:** DQN agent vs. fixed-time controller, compared on average
   wait time and throughput, across at least two scenarios ("rush hour",
   "low traffic"), with the comparison stated in aggregate statistics
@@ -59,7 +91,10 @@ the evidence that the agent works.
 
 ## Explicitly not deliverables
 
-- No web frontend, no user-facing app — the "interface" is the SUMO GUI
-  (for demos) and the dashboard plots (for results).
-- No deployment/production concerns — this is a research simulation, not a
-  service.
+- Full generalization to arbitrary/unseen intersections — config-driven
+  means "not hardcoded to one file," not "proven to generalize to every
+  intersection in the city."
+- Deployment/production concerns (auth, scaling, real hardware
+  integration) — this is a research simulation product, not a service.
+- Docker packaging / versioned releases — out of scope for this pass;
+  revisit only if time allows after week 9.

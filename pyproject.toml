@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "traffic-drl"
+version = "0.1.0"
+description = "Adaptive Traffic Signal Control System using Deep Reinforcement Learning (DQN + SUMO)"
+authors = [{ name = "Shruti Gurung" }]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "matplotlib",
+    "pandas",
+    "torch",
+    "traci",
+    "sumolib",
+    "pyyaml",
+    "streamlit",
+]
+
+[project.scripts]
+traffic-drl = "traffic_drl.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["traffic_drl*"]

@@ -1,0 +1,4 @@
+# Week 8: high-density traffic demand scenario for stress-testing.
+name: rush_hour
+description: High vehicle demand across all approaches to stress-test signal switching.
+route_file: null  # e.g. configs/intersection_rush_hour.rou.xml
