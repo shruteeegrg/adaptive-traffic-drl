@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# SUMO outputs
+*.xml.bak
+*-output.xml
+tripinfo.xml
+*.sumocfg.bak
+
+# Trained models / checkpoints
+*.pt
+*.pth
+*.h5
+checkpoints/
+
+# Logs / data dumps
+*.log
+data/raw/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
