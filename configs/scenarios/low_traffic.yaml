@@ -1,4 +1,7 @@
-# Week 8: low-density traffic demand scenario for stress-testing.
+# Low-density traffic demand scenario for stress-testing (used from
+# Week 8 onward). The route file itself is generated now, in Week 2,
+# alongside the base network -- see scripts/generate_routes.py.
 name: low_traffic
 description: Sparse vehicle demand to check the agent doesn't over-switch needlessly.
-route_file: null  # e.g. configs/intersection_low_traffic.rou.xml
+route_file: low_traffic.rou.xml   # 120 veh/h per approach -- regenerate with:
+                                    #   python scripts/generate_routes.py --out configs/scenarios/low_traffic.rou.xml --vehs-per-hour 120
