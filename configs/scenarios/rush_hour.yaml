@@ -1,4 +1,8 @@
-# Week 8: high-density traffic demand scenario for stress-testing.
+# High-density traffic demand scenario for stress-testing (used from
+# Week 8 onward, once the trained agent and fixed-time baseline exist to
+# compare). The route file itself is generated now, in Week 2, alongside
+# the base network -- see scripts/generate_routes.py.
 name: rush_hour
 description: High vehicle demand across all approaches to stress-test signal switching.
-route_file: null  # e.g. configs/intersection_rush_hour.rou.xml
+route_file: rush_hour.rou.xml   # 900 veh/h per approach -- regenerate with:
+                                 #   python scripts/generate_routes.py --out configs/scenarios/rush_hour.rou.xml --vehs-per-hour 900
