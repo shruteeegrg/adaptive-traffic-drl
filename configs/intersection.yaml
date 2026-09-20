@@ -1,0 +1,46 @@
+# Config-driven description of the intersection environment.
+#
+# traffic_drl/env reads this file rather than having any of these values
+# hardcoded in Python -- pointing at a different net/route file, or a
+# different traffic-light id, means editing this file, not the code.
+name: intersection
+network_file: intersection.net.xml
+route_file: intersection.rou.xml
+sumocfg_file: intersection.sumocfg
+
+# The id of the controlled traffic light junction, as generated in
+# intersection.net.xml (see scripts/generate_network.sh).
+traffic_light_id: A1
+
+# Simulation stepping.
+step_length: 1.0        # seconds of simulated time per env.step() call
+episode_length: 3600    # seconds per episode before an episode ends (1 simulated hour)
+gui: false              # true launches sumo-gui instead of headless sumo (useful for manual sanity checks)
+
+# The traffic light's phase program, as defined by netgenerate/SUMO in
+# intersection.net.xml's <tlLogic>. Index 0/2 are the two green phases an
+# agent can select; 1/3 are the yellow clearance phases the environment
+# inserts automatically on a green-to-green switch (see traci_env.py) --
+# an agent never selects a yellow phase directly.
+phases:
+  - index: 0
+    name: north_south_green
+  - index: 1
+    name: north_south_yellow
+  - index: 2
+    name: east_west_green
+  - index: 3
+    name: east_west_yellow
+yellow_duration: 3   # seconds held on a phase switch, before the new green
+
+# One incoming edge per approach -- this is what the environment reads
+# queue length / vehicle count from to build the agent's state vector.
+approaches:
+  - name: east
+    incoming_edge: B1A1
+  - name: north
+    incoming_edge: B2A1
+  - name: west
+    incoming_edge: B3A1
+  - name: south
+    incoming_edge: B4A1

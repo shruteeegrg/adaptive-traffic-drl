@@ -90,12 +90,18 @@ pip install -e .
 Requires SUMO installed separately — see https://sumo.dlr.de/docs/Installing/index.html
 and the `SUMO_HOME` environment variable set for TraCI to work.
 
+Sanity-check the environment (Week 2 onward):
+
+```bash
+traffic-drl env-check --config configs/intersection.yaml
+```
+
 ## Status
 
 Progress checklist (tick off as PRs merge):
 
-- [ ] Week 1 — Repo, environment & package setup
-- [ ] Week 2 — SUMO network + config schema
+- [x] Week 1 — Repo, environment & package setup
+- [x] Week 2 — SUMO network + config schema
 - [ ] Week 3 — Baseline Q-table agent
 - [ ] Week 4 — State/reward design + NN architecture
 - [ ] Week 5 — DQN training loop
