@@ -1,0 +1,29 @@
+# Full-intersection design for the DQN agent (Week 4). Inherits everything
+# from intersection.yaml and overrides only the state/reward design and
+# network settings -- the Q-table keeps using intersection.yaml's
+# queue-only state.
+extends: intersection.yaml
+name: intersection_dqn
+
+# State = per-approach queue + waiting time, current green phase (one-hot),
+# time in phase. 4 + 4 + 2 + 1 = 11 inputs. Scales bring values near [0, 1].
+state:
+  features: [queue, waiting_time, phase, phase_elapsed]
+  queue_scale: 20.0
+  wait_scale: 200.0
+  phase_elapsed_scale: 60.0
+
+# Reward = -(queue + 0.05 * waiting time) - 2 per phase switch, / 10.
+# The switch penalty discourages flicker on top of the yellow-time cost.
+reward:
+  queue_weight: 1.0
+  wait_weight: 0.05
+  switch_penalty: 2.0
+  reward_scale: 10.0
+
+# Network settings read by traffic_drl.agent.MLP.from_config (Week 4);
+# training hyperparameters (replay, target sync, epsilon) arrive in Week 5.
+dqn:
+  hidden_sizes: [64, 64]
+  learning_rate: 0.001
+  seed: 0

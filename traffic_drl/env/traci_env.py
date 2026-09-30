@@ -18,6 +18,11 @@ proposal's own risk mitigation (keeps training CPU-only and fast).
 
 Reward: negative sum of queue lengths across all approaches (minimizing
 this is equivalent to minimizing total intersection delay).
+
+Week 4: the state vector and reward are now built by traffic_drl.env.features
+from the optional `state:` / `reward:` config sections (queue, waiting
+time, current phase, time in phase; queue/wait/switch-penalty weights).
+With those sections absent the behaviour above is unchanged.
 """
 
 import os
@@ -26,6 +31,7 @@ import sys
 import numpy as np
 
 from traffic_drl.config import load_config
+from traffic_drl.env import features
 
 # SUMO ships its Python helper modules (traci, sumolib) under
 # $SUMO_HOME/tools rather than on a normal pip-installed path -- this is
@@ -50,6 +56,12 @@ class TraciEnv:
         self.yellow_duration = float(self.config.get("yellow_duration", 3))
         self.gui = bool(self.config.get("gui", False))
         self.approaches = self.config["approaches"]
+        self.state_cfg = features.state_config(self.config)
+        self.reward_cfg = features.reward_config(self.config)
+        self.n_actions = len(GREEN_PHASES)
+        self.state_size = features.state_size(self.state_cfg, len(self.approaches), self.n_actions)
+        self._action = 0
+        self._phase_elapsed = 0.0
 
         self._connected = False
         self._current_green_phase = None  # tlLogic phase index currently active
@@ -72,6 +84,8 @@ class TraciEnv:
         traci.start(cmd)
         self._connected = True
         self._elapsed = 0.0
+        self._action = 0
+        self._phase_elapsed = 0.0
 
         # Start on the north-south green phase (action 0) by convention.
         traci.trafficlight.setPhase(self.tls_id, GREEN_PHASES[0])
@@ -84,6 +98,7 @@ class TraciEnv:
             raise ValueError(f"action must be one of {list(GREEN_PHASES)}, got {action}")
 
         requested_phase = GREEN_PHASES[action]
+        switched = requested_phase != self._current_green_phase
 
         if self._current_green_phase is not None and requested_phase != self._current_green_phase:
             # Switching green -- clear the intersection with a yellow phase
@@ -95,8 +110,10 @@ class TraciEnv:
         self._current_green_phase = requested_phase
         self._advance(self.step_length)
 
+        self._phase_elapsed = self.step_length if switched else self._phase_elapsed + self.step_length
+        self._action = action
         state = self._get_state()
-        reward = self._get_reward(state)
+        reward = self._get_reward(switched)
         done = (
             self._elapsed >= self.episode_length
             or traci.simulation.getMinExpectedNumber() == 0
@@ -110,14 +127,25 @@ class TraciEnv:
             traci.simulationStep()
             self._elapsed += self.step_length
 
+    def _read_edges(self):
+        edges = [a["incoming_edge"] for a in self.approaches]
+        queues = [traci.edge.getLastStepHaltingNumber(e) for e in edges]
+        waits = (
+            [traci.edge.getWaitingTime(e) for e in edges]
+            if "waiting_time" in self.state_cfg["features"] or self.reward_cfg["wait_weight"]
+            else [0.0] * len(edges)
+        )
+        return queues, waits
+
     def _get_state(self) -> np.ndarray:
-        return np.array(
-            [traci.edge.getLastStepHaltingNumber(a["incoming_edge"]) for a in self.approaches],
-            dtype=np.float32,
+        queues, waits = self._read_edges()
+        return features.build_state(
+            self.state_cfg, queues, waits, self._action, self._phase_elapsed, self.n_actions
         )
 
-    def _get_reward(self, state: np.ndarray) -> float:
-        return -float(state.sum())
+    def _get_reward(self, switched: bool) -> float:
+        queues, waits = self._read_edges()
+        return features.compute_reward(self.reward_cfg, queues, waits, switched)
 
     def close(self):
         if self._connected:
