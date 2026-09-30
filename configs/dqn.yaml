@@ -21,9 +21,22 @@ reward:
   switch_penalty: 2.0
   reward_scale: 10.0
 
-# Network settings read by traffic_drl.agent.MLP.from_config (Week 4);
-# training hyperparameters (replay, target sync, epsilon) arrive in Week 5.
+# DQN settings read by traffic_drl.agent.DQNAgent.from_config (Week 5).
+# Learning rate 1e-3 is deliberate: 3e-3 was seen to diverge on the toy
+# model for some seeds (see logs/week-05.md) -- revisit in Week 6.
 dqn:
+  episodes: 100           # training episodes
+  max_steps: 600          # agent decisions per episode (caps SUMO episode cost)
   hidden_sizes: [64, 64]
   learning_rate: 0.001
+  gamma: 0.95
+  epsilon_start: 1.0
+  epsilon_end: 0.05
+  epsilon_decay: 0.95     # multiplied into epsilon after every episode
+  batch_size: 64
+  buffer_size: 20000      # replay capacity (transitions)
+  learn_start: 500        # transitions buffered before learning begins
+  train_every: 1          # gradient step every N env steps
+  target_sync_steps: 200  # hard-copy online -> target network every N env steps
+  loss: huber             # huber | mse
   seed: 0

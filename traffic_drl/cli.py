@@ -15,7 +15,7 @@ Build order (see README.md 10-week plan):
   Week 1: CLI skeleton (no-op subcommands)
   Week 2: `env-check` wired to traffic_drl.env.TraciEnv (real, not a stub)
   Week 3: `train --agent qtable` wired to a real agent
-  Week 5: `train --agent dqn` wired to a real agent
+  Week 5: `train --agent dqn` wired to a real agent (done)
   Week 7: `evaluate` wired to traffic_drl.viz for saved-log plotting
   Week 8: `compare` wired to traffic_drl.baseline + scenario configs
   Week 8: `demo` wired to traffic_drl.app (Streamlit)
@@ -34,7 +34,7 @@ def build_parser() -> argparse.ArgumentParser:
     train.add_argument("--config", required=True, help="Path to intersection config YAML")
     train.add_argument("--env", choices=["sumo", "toy"], default="sumo",
                        help="sumo = TraciEnv (needs SUMO); toy = fast pure-Python queue model")
-    train.add_argument("--episodes", type=int, help="Override qtable.episodes from the config")
+    train.add_argument("--episodes", type=int, help="Override episodes from the config")
     train.add_argument("--out-dir", default="checkpoints", help="Where the checkpoint, log and plot go")
 
     evaluate = sub.add_parser("evaluate", help="Evaluate a trained checkpoint on a scenario")
@@ -56,37 +56,48 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _train_qtable(args) -> int:
+def _train(args) -> int:
     import os
 
-    from traffic_drl.agent import QTableAgent, train_qtable
+    from traffic_drl.agent import DQNAgent, QTableAgent, train_agent
     from traffic_drl.config import load_config
     from traffic_drl.viz import plot_reward_curve
 
     config = load_config(args.config)
-    params = config.get("qtable", {})
+    section = "qtable" if args.agent == "qtable" else "dqn"
+    params = config.get(section, {})
     episodes = args.episodes or params.get("episodes", 30)
-    agent = QTableAgent.from_config(config)
 
     if args.env == "toy":
         from traffic_drl.env import SimpleQueueEnv
 
-        env = SimpleQueueEnv(seed=params.get("seed", 0))
+        # The toy model's state is sized for the agent, not for the YAML.
+        env = SimpleQueueEnv(seed=params.get("seed", 0), state_scale=20.0,
+                             include_phase=args.agent == "dqn")
+        state_size = env.state_size
     else:
         from traffic_drl.env import TraciEnv
 
         env = TraciEnv(args.config)
+        state_size = env.state_size
+
+    if args.agent == "qtable":
+        agent = QTableAgent.from_config(config)
+        ckpt_name = "qtable.json"
+    else:
+        agent = DQNAgent.from_config(config, state_dim=state_size)
+        ckpt_name = "dqn.npz"
 
     os.makedirs(args.out_dir, exist_ok=True)
-    log_path = os.path.join(args.out_dir, "qtable_rewards.csv")
+    log_path = os.path.join(args.out_dir, f"{args.agent}_rewards.csv")
     try:
-        train_qtable(env, agent, episodes, max_steps=params.get("max_steps"), log_path=log_path)
+        train_agent(env, agent, episodes, max_steps=params.get("max_steps"), log_path=log_path)
     finally:
         env.close()
 
-    ckpt_path = os.path.join(args.out_dir, "qtable.json")
+    ckpt_path = os.path.join(args.out_dir, ckpt_name)
     agent.save(ckpt_path)
-    plot_path = plot_reward_curve(log_path, os.path.join(args.out_dir, "qtable_reward_curve.png"))
+    plot_path = plot_reward_curve(log_path, os.path.join(args.out_dir, f"{args.agent}_reward_curve.png"))
     print(f"saved checkpoint={ckpt_path} log={log_path} plot={plot_path}")
     return 0
 
@@ -113,9 +124,7 @@ def main(argv=None) -> int:
         env.close()
         print(f"step() OK — ran {i + 1} steps, total_reward={total_reward:.1f}, final_state={state}")
     elif args.command == "train":
-        if args.agent == "qtable":
-            return _train_qtable(args)
-        print(f"[stub] would train agent={args.agent} config={args.config}")
+        return _train(args)
     elif args.command == "evaluate":
         print(f"[stub] would evaluate checkpoint={args.checkpoint} scenario={args.scenario}")
     elif args.command == "compare":
