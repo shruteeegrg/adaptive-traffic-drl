@@ -32,6 +32,10 @@ def build_parser() -> argparse.ArgumentParser:
     train = sub.add_parser("train", help="Train an agent (qtable or dqn)")
     train.add_argument("--agent", choices=["qtable", "dqn"], required=True)
     train.add_argument("--config", required=True, help="Path to intersection config YAML")
+    train.add_argument("--env", choices=["sumo", "toy"], default="sumo",
+                       help="sumo = TraciEnv (needs SUMO); toy = fast pure-Python queue model")
+    train.add_argument("--episodes", type=int, help="Override qtable.episodes from the config")
+    train.add_argument("--out-dir", default="checkpoints", help="Where the checkpoint, log and plot go")
 
     evaluate = sub.add_parser("evaluate", help="Evaluate a trained checkpoint on a scenario")
     evaluate.add_argument("--checkpoint", required=True)
@@ -50,6 +54,41 @@ def build_parser() -> argparse.ArgumentParser:
     env_check.add_argument("--steps", type=int, default=200)
 
     return parser
+
+
+def _train_qtable(args) -> int:
+    import os
+
+    from traffic_drl.agent import QTableAgent, train_qtable
+    from traffic_drl.config import load_config
+    from traffic_drl.viz import plot_reward_curve
+
+    config = load_config(args.config)
+    params = config.get("qtable", {})
+    episodes = args.episodes or params.get("episodes", 30)
+    agent = QTableAgent.from_config(config)
+
+    if args.env == "toy":
+        from traffic_drl.env import SimpleQueueEnv
+
+        env = SimpleQueueEnv(seed=params.get("seed", 0))
+    else:
+        from traffic_drl.env import TraciEnv
+
+        env = TraciEnv(args.config)
+
+    os.makedirs(args.out_dir, exist_ok=True)
+    log_path = os.path.join(args.out_dir, "qtable_rewards.csv")
+    try:
+        train_qtable(env, agent, episodes, max_steps=params.get("max_steps"), log_path=log_path)
+    finally:
+        env.close()
+
+    ckpt_path = os.path.join(args.out_dir, "qtable.json")
+    agent.save(ckpt_path)
+    plot_path = plot_reward_curve(log_path, os.path.join(args.out_dir, "qtable_reward_curve.png"))
+    print(f"saved checkpoint={ckpt_path} log={log_path} plot={plot_path}")
+    return 0
 
 
 def main(argv=None) -> int:
@@ -74,6 +113,8 @@ def main(argv=None) -> int:
         env.close()
         print(f"step() OK — ran {i + 1} steps, total_reward={total_reward:.1f}, final_state={state}")
     elif args.command == "train":
+        if args.agent == "qtable":
+            return _train_qtable(args)
         print(f"[stub] would train agent={args.agent} config={args.config}")
     elif args.command == "evaluate":
         print(f"[stub] would evaluate checkpoint={args.checkpoint} scenario={args.scenario}")
