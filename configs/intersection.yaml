@@ -44,3 +44,16 @@ approaches:
     incoming_edge: B3A1
   - name: south
     incoming_edge: B4A1
+
+# Tabular Q-learning baseline (Week 3). Read by traffic_drl.agent.QTableAgent
+# and the `train --agent qtable` loop -- nothing here is hardcoded in Python.
+qtable:
+  episodes: 30          # training episodes
+  max_steps: 600        # agent decisions per episode (caps SUMO episode cost)
+  alpha: 0.1            # learning rate
+  gamma: 0.95           # discount factor
+  epsilon_start: 1.0    # exploration rate at episode 1
+  epsilon_end: 0.05     # floor for exploration
+  epsilon_decay: 0.9    # multiplied into epsilon after every episode
+  queue_bins: [1, 4, 8] # queue-length cut points -> 4 buckets per approach
+  seed: 0
