@@ -57,6 +57,9 @@ documentation *of* the product, not the deliverable itself.
   config file — verified via `tests/test_env_smoke.py` and
   `traffic-drl env-check`, both run against a real SUMO process, twice, with
   identical results each time.
+- **Week 4 update:** the richer state (waiting time, phase, time-in-phase)
+  and configurable reward are now done (`traffic_drl/env/features.py`,
+  `configs/dqn.yaml`).
 - **Deliberately deferred:** turning movements (only straight-through
   demand exists so far), a richer state (currently queue length only, not
   waiting time/speed), and a >2-phase action space — these are natural
