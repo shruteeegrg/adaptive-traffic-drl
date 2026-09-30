@@ -28,24 +28,31 @@ def run_episode(env, agent, train: bool = True, max_steps: int = None) -> float:
     return total
 
 
-def train_qtable(env, agent, episodes: int, max_steps: int = None, log_path: str = None, verbose: bool = True):
-    """Train for `episodes` episodes; returns the per-episode reward list
+def train_agent(env, agent, episodes: int, max_steps: int = None, log_path: str = None, verbose: bool = True):
+    """Train any agent with act/update/decay_epsilon (QTableAgent or
+    DQNAgent) for `episodes` episodes; returns the per-episode reward list
     and, if `log_path` is given, writes it as CSV (episode, reward,
-    epsilon) so the reward curve can be re-plotted from saved logs."""
-    rewards, epsilons = [], []
+    epsilon, loss) so the reward curve can be re-plotted from saved logs.
+    `loss` is the mean DQN loss that episode (empty for the Q-table)."""
+    rewards, epsilons, losses = [], [], []
     for ep in range(episodes):
         rewards.append(run_episode(env, agent, train=True, max_steps=max_steps))
         epsilons.append(agent.epsilon)
+        losses.append(agent.pop_mean_loss() if hasattr(agent, "pop_mean_loss") else None)
         agent.decay_epsilon()
         if verbose:
+            extra = f"states={len(agent.q)}" if hasattr(agent, "q") else f"loss={losses[-1]}"
             print(f"episode {ep + 1}/{episodes}  reward={rewards[-1]:.1f}  "
-                  f"epsilon={epsilons[-1]:.3f}  states={len(agent.q)}")
+                  f"epsilon={epsilons[-1]:.3f}  {extra}")
 
     if log_path:
         os.makedirs(os.path.dirname(log_path) or ".", exist_ok=True)
         with open(log_path, "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow(["episode", "reward", "epsilon"])
-            for i, (r, e) in enumerate(zip(rewards, epsilons), start=1):
-                writer.writerow([i, r, e])
+            writer.writerow(["episode", "reward", "epsilon", "loss"])
+            for i, (r, e, l) in enumerate(zip(rewards, epsilons, losses), start=1):
+                writer.writerow([i, r, e, "" if l is None else l])
     return rewards
+
+
+train_qtable = train_agent  # Week 3 name, kept for compatibility

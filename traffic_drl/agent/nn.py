@@ -76,7 +76,8 @@ class MLP:
             mine[...] = theirs
 
     def save(self, path: str) -> None:
-        np.savez(path, sizes=np.array(self.sizes), **{f"p{i}": p for i, p in enumerate(self.parameters())})
+        with open(path, "wb") as f:  # file object: np.savez would append ".npz" to a bare path
+            np.savez(f, sizes=np.array(self.sizes), **{f"p{i}": p for i, p in enumerate(self.parameters())})
 
     def load(self, path: str) -> None:
         data = np.load(path)
@@ -98,6 +99,20 @@ def mse_loss(pred: np.ndarray, target: np.ndarray, mask: np.ndarray = None):
     batch = pred.shape[0]
     loss = float(np.sum(diff ** 2) / batch)
     grad = 2.0 * diff / batch
+    return loss, grad
+
+
+def huber_loss(pred: np.ndarray, target: np.ndarray, mask: np.ndarray = None, delta: float = 1.0):
+    """Huber loss (quadratic near zero, linear beyond `delta`) and its
+    gradient wrt pred. The standard DQN loss: large TD errors early in
+    training give bounded gradients instead of exploding ones."""
+    diff = pred - target
+    if mask is not None:
+        diff = diff * mask
+    batch = pred.shape[0]
+    small = np.abs(diff) <= delta
+    loss = float(np.sum(np.where(small, 0.5 * diff ** 2, delta * (np.abs(diff) - 0.5 * delta))) / batch)
+    grad = np.where(small, diff, delta * np.sign(diff)) / batch
     return loss, grad
 
 

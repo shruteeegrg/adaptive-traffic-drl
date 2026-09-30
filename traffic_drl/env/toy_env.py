@@ -21,6 +21,8 @@ class SimpleQueueEnv:
         episode_length: int = 300,
         max_queue: int = 30,
         seed: int = 0,
+        state_scale: float = 1.0,
+        include_phase: bool = False,
     ):
         self.arrival_probs = np.asarray(arrival_probs, dtype=np.float64)
         self.service_prob = service_prob
@@ -28,6 +30,9 @@ class SimpleQueueEnv:
         self.episode_length = episode_length
         self.max_queue = max_queue
         self.seed = seed
+        self.state_scale = state_scale      # divide queues by this (network inputs near [0, 1])
+        self.include_phase = include_phase  # append one-hot of the active green
+        self.state_size = 4 if include_phase else 2
         self._episode = 0
 
     def reset(self):
@@ -55,12 +60,15 @@ class SimpleQueueEnv:
             self.green = action
         self._tick(serving=True)
         state = self._state()
-        reward = -float(state.sum())
+        reward = -float(self.queues.sum())  # always on raw queue counts
         done = self._elapsed >= self.episode_length
         return state, reward, done, {"elapsed": self._elapsed}
 
     def _state(self) -> np.ndarray:
-        return self.queues.astype(np.float32)
+        s = self.queues.astype(np.float32) / self.state_scale
+        if self.include_phase:
+            s = np.concatenate([s, np.eye(2, dtype=np.float32)[self.green]])
+        return s
 
     def close(self):
         pass
