@@ -62,7 +62,7 @@ documentation *of* the product, not the deliverable itself.
   waiting time/speed), and a >2-phase action space — these are natural
   Week 3+ extensions once the agent side exists to make use of them.
 
-## 3. RL Agent Code (part of the product)
+## 3. RL Agent Code (part of the product) — Q-table DONE (Week 3), DQN pending
 
 - **Where:** `traffic_drl/agent/q_table_agent.py` (baseline),
   `traffic_drl/agent/dqn_agent.py` (network + replay buffer + target

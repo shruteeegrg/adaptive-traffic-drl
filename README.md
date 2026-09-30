@@ -36,7 +36,7 @@ traffic-drl demo   # launches the interactive Streamlit app
 traffic_drl/         installable package
   cli.py              CLI entry point (train / evaluate / compare / demo)
   env/                config-driven SUMO/TraCI environment wrapper
-  agent/              Q-table baseline + DQN agent (from scratch)
+  agent/              Q-table baseline (done) + DQN agent (from scratch)
   baseline/           fixed-time controller for comparison
   viz/                shared plotting (reward, wait time, throughput)
   app.py              interactive Streamlit demo app
@@ -102,7 +102,7 @@ Progress checklist (tick off as PRs merge):
 
 - [x] Week 1 — Repo, environment & package setup
 - [x] Week 2 — SUMO network + config schema
-- [ ] Week 3 — Baseline Q-table agent
+- [x] Week 3 — Baseline Q-table agent (verified on toy queue model; SUMO run pending)
 - [ ] Week 4 — State/reward design + NN architecture
 - [ ] Week 5 — DQN training loop
 - [ ] Week 6 — Training & convergence debugging
