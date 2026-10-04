@@ -5,6 +5,7 @@ Usage:
     traffic-drl train --agent {qtable,dqn} --config configs/<name>.yaml
     traffic-drl evaluate --checkpoint checkpoints/dqn_final.pt --scenario configs/scenarios/rush_hour.yaml
     traffic-drl compare --config configs/<name>.yaml --scenarios rush_hour,low_traffic
+    traffic-drl sweep --config configs/dqn.yaml --scenario configs/scenarios/rush_hour.yaml
     traffic-drl demo
 
 Each subcommand should stay a thin wrapper around traffic_drl.env /
@@ -37,6 +38,15 @@ def build_parser() -> argparse.ArgumentParser:
     train.add_argument("--scenario", help="Scenario YAML (e.g. configs/scenarios/rush_hour.yaml); SUMO env only")
     train.add_argument("--episodes", type=int, help="Override episodes from the config")
     train.add_argument("--out-dir", default="checkpoints", help="Where the checkpoint, log and plot go")
+    train.add_argument("--eval-every", type=int, help="Greedy evaluation every N episodes (keeps a best checkpoint); overrides config")
+
+    sweep = sub.add_parser("sweep", help="Hyperparameter sweep for the DQN agent across seeds (Week 6)")
+    sweep.add_argument("--config", default="configs/dqn.yaml")
+    sweep.add_argument("--scenario", help="Scenario YAML to train and evaluate on; SUMO env only")
+    sweep.add_argument("--env", choices=["sumo", "toy"], default="sumo")
+    sweep.add_argument("--episodes", type=int, help="Override sweep.episodes from the config")
+    sweep.add_argument("--seeds", help="Comma-separated seeds, e.g. 0,1,2 (overrides sweep.seeds)")
+    sweep.add_argument("--out-dir", default="sweep_results")
 
     evaluate = sub.add_parser("evaluate", help="Evaluate a trained checkpoint on a scenario")
     evaluate.add_argument("--checkpoint", required=True)
@@ -95,15 +105,55 @@ def _train(args) -> int:
 
     os.makedirs(args.out_dir, exist_ok=True)
     log_path = os.path.join(args.out_dir, f"{args.agent}_rewards.csv")
+    eval_every = args.eval_every if args.eval_every is not None else params.get("eval_every")
+    stem, ext = os.path.splitext(ckpt_name)
+    best_path = os.path.join(args.out_dir, f"{stem}_best{ext}") if eval_every else None
+    history = {}
     try:
-        train_agent(env, agent, episodes, max_steps=params.get("max_steps"), log_path=log_path)
+        train_agent(env, agent, episodes, max_steps=params.get("max_steps"), log_path=log_path,
+                    eval_every=eval_every, best_path=best_path, history=history)
     finally:
         env.close()
+    if best_path:
+        print(f"best checkpoint: {best_path} (episode {history['best_episode']})")
 
     ckpt_path = os.path.join(args.out_dir, ckpt_name)
     agent.save(ckpt_path)
     plot_path = plot_reward_curve(log_path, os.path.join(args.out_dir, f"{args.agent}_reward_curve.png"))
     print(f"saved checkpoint={ckpt_path} log={log_path} plot={plot_path}")
+    return 0
+
+
+def _sweep(args) -> int:
+    from traffic_drl.config import load_config
+    from traffic_drl.sweep import run_sweep
+
+    config = load_config(args.config)
+    sw = config.get("sweep", {})
+    if not sw.get("grid"):
+        raise SystemExit(f"{args.config} has no sweep.grid section")
+    episodes = args.episodes or sw.get("episodes", 40)
+    seeds = [int(x) for x in args.seeds.split(",")] if args.seeds else sw.get("seeds", [0, 1])
+
+    if args.env == "toy":
+        from traffic_drl.env import SimpleQueueEnv
+
+        env = SimpleQueueEnv(seed=0, state_scale=20.0, include_phase=True)
+    else:
+        from traffic_drl.env import TraciEnv
+
+        env = TraciEnv(args.config, scenario=args.scenario)
+    try:
+        summary = run_sweep(env, config, sw["grid"], seeds, episodes, args.out_dir,
+                            max_steps=config.get("dqn", {}).get("max_steps"),
+                            eval_every=config.get("dqn", {}).get("eval_every"))
+    finally:
+        env.close()
+
+    print("\nranked settings (best first):")
+    for i, row in enumerate(summary, start=1):
+        print(f"{i}. " + "  ".join(f"{k}={v:.3g}" if isinstance(v, float) else f"{k}={v}" for k, v in row.items()))
+    print(f"\nwrote {args.out_dir}/sweep_summary.csv, sweep_runs.csv, runs/")
     return 0
 
 
@@ -134,6 +184,8 @@ def main(argv=None) -> int:
         print(f"step() OK — ran {i + 1} steps, total_reward={total_reward:.1f}, final_state={state}")
     elif args.command == "train":
         return _train(args)
+    elif args.command == "sweep":
+        return _sweep(args)
     elif args.command == "evaluate":
         print(f"[stub] would evaluate checkpoint={args.checkpoint} scenario={args.scenario}")
     elif args.command == "compare":

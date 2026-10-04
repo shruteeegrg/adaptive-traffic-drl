@@ -28,13 +28,48 @@ def run_episode(env, agent, train: bool = True, max_steps: int = None) -> float:
     return total
 
 
-def train_agent(env, agent, episodes: int, max_steps: int = None, log_path: str = None, verbose: bool = True):
+EVAL_SEED_BASE = 10_000  # SUMO seeds for evaluation, far from the training seeds
+
+
+def evaluate(env, agent, episodes: int = 2, max_steps: int = None, seed_base: int = EVAL_SEED_BASE) -> dict:
+    """Greedy (no exploration, no learning) evaluation, averaged over
+    `episodes`. Returns {"reward": ...} plus mean_queue /
+    avg_wait_per_vehicle / throughput_per_hour when the env measures them.
+    On envs with a `seed_base` (TraciEnv) it runs on unseen SUMO seeds."""
+    saved = getattr(env, "seed_base", None)
+    if saved is not None:
+        env.seed_base = seed_base
+    try:
+        rows = []
+        for _ in range(episodes):
+            reward = run_episode(env, agent, train=False, max_steps=max_steps)
+            rows.append({"reward": reward, **(env.metrics() if hasattr(env, "metrics") else {})})
+    finally:
+        if saved is not None:
+            env.seed_base = saved
+    return {k: float(sum(r[k] for r in rows) / len(rows)) for k in rows[0]}
+
+
+def _score(result: dict) -> float:
+    """Higher is better. Prefer the per-second mean queue (comparable across
+    policies); fall back to reward where the env has no metrics."""
+    return -result["mean_queue"] if "mean_queue" in result else result["reward"]
+
+
+def train_agent(env, agent, episodes: int, max_steps: int = None, log_path: str = None, verbose: bool = True,
+                eval_every: int = None, eval_episodes: int = 2, best_path: str = None, history: dict = None):
     """Train any agent with act/update/decay_epsilon (QTableAgent or
     DQNAgent) for `episodes` episodes; returns the per-episode reward list
     and, if `log_path` is given, writes it as CSV (episode, reward,
     epsilon, loss, plus per-second mean_queue / avg_wait_per_vehicle /
     throughput_per_hour when the env measures them) so the reward curve can be re-plotted from saved logs.
-    `loss` is the mean DQN loss that episode (empty for the Q-table)."""
+    `loss` is the mean DQN loss that episode (empty for the Q-table).
+
+    With `eval_every`, the greedy policy is evaluated on unseen seeds every
+    that-many episodes (and after the last); if `best_path` is given the
+    best-scoring agent so far is saved there. `history`, if a dict, is
+    filled with best_score / best_episode / evals."""
+    best_score, best_episode, evals = float("-inf"), None, []
     rewards, epsilons, losses, metrics = [], [], [], []
     for ep in range(episodes):
         rewards.append(run_episode(env, agent, train=True, max_steps=max_steps))
@@ -42,6 +77,17 @@ def train_agent(env, agent, episodes: int, max_steps: int = None, log_path: str 
         metrics.append(env.metrics() if hasattr(env, "metrics") else {})
         losses.append(agent.pop_mean_loss() if hasattr(agent, "pop_mean_loss") else None)
         agent.decay_epsilon()
+        if eval_every and ((ep + 1) % eval_every == 0 or ep + 1 == episodes):
+            result = evaluate(env, agent, eval_episodes, max_steps=max_steps)
+            evals.append({"episode": ep + 1, **result})
+            if _score(result) > best_score:
+                best_score, best_episode = _score(result), ep + 1
+                if best_path:
+                    os.makedirs(os.path.dirname(best_path) or ".", exist_ok=True)
+                    agent.save(best_path)
+            if verbose:
+                print(f"  eval @ episode {ep + 1}: " + "  ".join(f"{k}={v:.2f}" for k, v in result.items())
+                      + (f"  (best so far: episode {best_episode})" if best_episode else ""))
         if verbose:
             extra = f"states={len(agent.q)}" if hasattr(agent, "q") else f"loss={losses[-1]}"
             print(f"episode {ep + 1}/{episodes}  reward={rewards[-1]:.1f}  "
@@ -57,6 +103,8 @@ def train_agent(env, agent, episodes: int, max_steps: int = None, log_path: str 
                 writer.writerow([i, r, e, "" if l is None else l,
                                  m.get("mean_queue", ""), m.get("avg_wait_per_vehicle", ""),
                                  m.get("throughput_per_hour", "")])
+    if history is not None:
+        history.update(best_score=best_score, best_episode=best_episode, evals=evals)
     return rewards
 
 

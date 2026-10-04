@@ -20,7 +20,7 @@ from traffic_drl.agent.replay_buffer import ReplayBuffer
 
 # Keys in the `dqn:` config section that belong to the training loop or
 # to other consumers, not to the agent constructor.
-_LOOP_KEYS = ("episodes", "max_steps")
+_LOOP_KEYS = ("episodes", "max_steps", "eval_every")
 
 
 class DQNAgent:

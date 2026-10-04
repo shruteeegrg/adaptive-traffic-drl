@@ -48,12 +48,18 @@ YELLOW_FOR = {0: 3, 2: 1}    # green phase index -> the yellow phase that clears
 
 
 class TraciEnv:
-    def __init__(self, config_path: str, scenario: str = None):
+    def __init__(self, config_path: str, scenario: str = None, seed: int = 0):
         """`scenario` is an optional path to a scenario YAML (e.g.
         configs/scenarios/rush_hour.yaml); its route file replaces the
         intersection's default demand for every episode."""
         self.config = load_config(config_path)
         self.scenario = load_scenario(scenario) if scenario else None
+        # Each reset() launches SUMO with seed = seed_base + (number of resets
+        # so far), so episodes see different driver behaviour instead of
+        # replaying one identical run. evaluate() moves seed_base far away
+        # from the training seeds so evaluation uses unseen realizations.
+        self.seed_base = seed
+        self._n_resets = 0
         self.tls_id = self.config["traffic_light_id"]
         self.step_length = float(self.config.get("step_length", 1.0))
         self.episode_length = float(self.config.get("episode_length", 3600))
@@ -85,7 +91,9 @@ class TraciEnv:
             "--step-length", str(self.step_length),
             "--no-warnings", "true",
             "--no-step-log", "true",
+            "--seed", str(self.seed_base + self._n_resets),
         ]
+        self._n_resets += 1
         if self.scenario:
             cmd += ["--route-files", self.scenario["route_file"]]  # overrides the sumocfg's demand
         traci.start(cmd)

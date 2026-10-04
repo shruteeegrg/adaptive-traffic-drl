@@ -9,9 +9,9 @@
 from traffic_drl.agent.q_table_agent import QTableAgent
 from traffic_drl.agent.dqn_agent import DQNAgent
 from traffic_drl.agent.replay_buffer import ReplayBuffer
-from traffic_drl.agent.training import run_episode, train_agent, train_qtable
+from traffic_drl.agent.training import evaluate, run_episode, train_agent, train_qtable
 
 from traffic_drl.agent.nn import MLP, Adam, huber_loss, mse_loss
 
-__all__ = ["QTableAgent", "DQNAgent", "ReplayBuffer", "run_episode", "train_agent",
+__all__ = ["QTableAgent", "DQNAgent", "ReplayBuffer", "run_episode", "evaluate", "train_agent",
            "train_qtable", "MLP", "Adam", "mse_loss", "huber_loss"]

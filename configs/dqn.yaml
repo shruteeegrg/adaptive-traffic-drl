@@ -5,6 +5,12 @@
 extends: intersection.yaml
 name: intersection_dqn
 
+# Training episodes are a fixed amount of *simulated time* (not a fixed
+# number of agent decisions): a decision that switches phase takes ~4 s and
+# one that doesn't takes 1 s, so a decision-count cap would give
+# frequent-switchers more simulated time per episode.
+episode_length: 1800
+
 # State = per-approach queue + waiting time, current green phase (one-hot),
 # time in phase. 4 + 4 + 2 + 1 = 11 inputs. Scales bring values near [0, 1].
 state:
@@ -26,7 +32,8 @@ reward:
 # model for some seeds (see logs/week-05.md) -- revisit in Week 6.
 dqn:
   episodes: 100           # training episodes
-  max_steps: 600          # agent decisions per episode (caps SUMO episode cost)
+  max_steps: null         # no decision cap: episodes end at episode_length seconds
+  eval_every: 10          # greedy evaluation every N episodes (unseen SUMO seeds); keeps a best checkpoint
   hidden_sizes: [64, 64]
   learning_rate: 0.001
   gamma: 0.95
@@ -40,3 +47,15 @@ dqn:
   target_sync_steps: 200  # hard-copy online -> target network every N env steps
   loss: huber             # huber | mse
   seed: 0
+
+# `traffic-drl sweep` trains every combination below x every seed, scores
+# each with a greedy evaluation on unseen seeds, and ranks the settings by
+# mean queue. 8 settings x 2 seeds x 40 episodes at ~10 s per episode is
+# roughly 2 hours on SUMO; trim the grid or use --episodes/--seeds to shrink.
+sweep:
+  episodes: 40
+  seeds: [0, 1]
+  grid:
+    learning_rate: [0.0005, 0.001]
+    target_sync_steps: [200, 1000]
+    epsilon_decay: [0.9, 0.95]
