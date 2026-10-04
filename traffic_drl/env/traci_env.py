@@ -214,8 +214,11 @@ class TraciEnv:
 
     def _get_state(self) -> np.ndarray:
         queues, waits = self._read_edges()
+        backlog = (
+            len(traci.simulation.getPendingVehicles()) if "backlog" in self.state_cfg["features"] else 0.0
+        )
         return features.build_state(
-            self.state_cfg, queues, waits, self._action, self._phase_elapsed, self.n_actions
+            self.state_cfg, queues, waits, self._action, self._phase_elapsed, self.n_actions, backlog
         )
 
     def close(self):

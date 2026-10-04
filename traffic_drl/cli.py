@@ -17,7 +17,7 @@ Build order (see README.md 10-week plan):
   Week 2: `env-check` wired to traffic_drl.env.TraciEnv (real, not a stub)
   Week 3: `train --agent qtable` wired to a real agent
   Week 5: `train --agent dqn` wired to a real agent (done)
-  Week 7: `evaluate` wired to traffic_drl.viz for saved-log plotting
+  Week 6: `evaluate` runs a checkpoint on a scenario (pulled forward); Week 7 adds plotting
   Week 8: `compare` wired to traffic_drl.baseline + scenario configs
   Week 8: `demo` wired to traffic_drl.app (Streamlit)
 """
@@ -56,7 +56,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     evaluate = sub.add_parser("evaluate", help="Evaluate a trained checkpoint on a scenario")
     evaluate.add_argument("--checkpoint", required=True)
-    evaluate.add_argument("--scenario", required=True, help="Path to scenario config YAML")
+    evaluate.add_argument("--scenario", help="Path to scenario config YAML (default: the config's own demand)")
+    evaluate.add_argument("--config", default="configs/dqn.yaml",
+                          help="Config the checkpoint was trained with (state design, network size)")
+    evaluate.add_argument("--episodes", type=int, default=3)
 
     compare = sub.add_parser("compare", help="Compare DQN agent vs. fixed-time baseline")
     compare.add_argument("--config", required=True)
@@ -134,6 +137,64 @@ def _train(args) -> int:
     agent.save(ckpt_path)
     plot_path = plot_reward_curve(log_path, os.path.join(args.out_dir, f"{args.agent}_reward_curve.png"))
     print(f"saved checkpoint={ckpt_path} log={log_path} plot={plot_path}")
+    return 0
+
+
+def _evaluate(args) -> int:
+    import csv
+    import glob
+    import os
+
+    from traffic_drl.agent import DQNAgent, QTableAgent, evaluate
+    from traffic_drl.config import load_config
+    from traffic_drl.env import TraciEnv
+
+    # A directory means: score every *_best.npz inside it (e.g. a sweep's runs/).
+    if os.path.isdir(args.checkpoint):
+        paths = sorted(glob.glob(os.path.join(args.checkpoint, "**", "*_best.npz"), recursive=True))
+        if not paths:
+            raise SystemExit(f"no *_best.npz checkpoints under {args.checkpoint}")
+    else:
+        paths = [args.checkpoint]
+
+    config = load_config(args.config)
+    env = TraciEnv(args.config, scenario=args.scenario)
+    table = []
+    try:
+        for path in paths:
+            agent = (QTableAgent.from_config(config) if path.endswith(".json")
+                     else DQNAgent.from_config(config, state_dim=env.state_size))
+            try:
+                agent.load(path)
+            except ValueError as e:
+                raise SystemExit(f"{e}\n(is --config the config this checkpoint was trained with?)")
+            results = [evaluate(env, agent, episodes=1) for _ in range(args.episodes)]
+            mean = {k: sum(r[k] for r in results) / len(results) for k in results[0]}
+            table.append((path, results, mean))
+    finally:
+        env.close()
+
+    where = args.scenario or "default demand"
+    if len(table) == 1:
+        path, results, mean = table[0]
+        print(f"{path} on {where}, {args.episodes} episodes on unseen seeds:")
+        for i, r in enumerate(results, start=1):
+            print(f"  episode {i}: " + "  ".join(f"{k}={r[k]:.2f}" for k in r))
+        print("  mean:      " + "  ".join(f"{k}={v:.2f}" for k, v in mean.items()))
+        return 0
+
+    table.sort(key=lambda row: row[2].get("mean_total_waiting", -row[2]["reward"]))
+    print(f"{len(table)} checkpoints on {where}, {args.episodes} episodes each, ranked by mean_total_waiting:")
+    for path, _, mean in table:
+        print(f"  {os.path.basename(path)}: " + "  ".join(
+            f"{k}={mean[k]:.1f}" for k in ("mean_total_waiting", "throughput_per_hour", "switches") if k in mean))
+    out = os.path.join(args.checkpoint, "best_checkpoints_eval.csv")
+    with open(out, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["checkpoint", *table[0][2].keys()])
+        for path, _, mean in table:
+            writer.writerow([os.path.relpath(path, args.checkpoint), *mean.values()])
+    print(f"wrote {out}")
     return 0
 
 
@@ -228,7 +289,7 @@ def main(argv=None) -> int:
     elif args.command == "sweep":
         return _sweep(args)
     elif args.command == "evaluate":
-        print(f"[stub] would evaluate checkpoint={args.checkpoint} scenario={args.scenario}")
+        return _evaluate(args)
     elif args.command == "compare":
         print(f"[stub] would compare config={args.config} scenarios={args.scenarios}")
     elif args.command == "demo":

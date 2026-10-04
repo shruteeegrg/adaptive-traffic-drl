@@ -36,6 +36,21 @@ def test_full_state_layout_and_scaling():
     assert np.allclose(s, [1, 0, .5, 0, 1, 0, 0, .5, 0, 1, .5])
 
 
+def test_backlog_feature_scaled_and_sized():
+    cfg = features.state_config({"state": {"features": ["queue", "backlog"], "backlog_scale": 200.0}})
+    s = features.build_state(cfg, [1, 2, 3, 4], [0] * 4, 0, 0, 2, backlog=100.0)
+    assert features.state_size(cfg, 4, 2) == len(s) == 5 and s[-1] == 0.5
+
+
+def test_dqn_backlog_config_has_12_inputs_and_reads_pending():
+    cfg = load_config(os.path.join(ROOT, "configs", "dqn_backlog.yaml"))
+    assert features.state_size(features.state_config(cfg), 4, 2) == 12
+    fake = FakeTraci()
+    env = _env("dqn_backlog.yaml", fake)
+    s = env.reset()
+    assert s.shape == (12,) and np.isclose(s[-1], 3 / 200)     # FakeTraci has 3 pending vehicles
+
+
 def test_unknown_feature_rejected():
     try:
         features.state_config({"state": {"features": ["queue", "speed"]}})

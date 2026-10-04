@@ -1,0 +1,10 @@
+# Experiment: dqn.yaml plus the insertion backlog as a state input (12 inputs).
+# The reward charges for vehicles waiting outside to enter the network, but
+# dqn.yaml's agent cannot observe them, which makes its value targets noisy.
+# Separate file so checkpoints trained with dqn.yaml (11 inputs) stay loadable.
+extends: dqn.yaml
+name: intersection_dqn_backlog
+
+state:
+  features: [queue, waiting_time, phase, phase_elapsed, backlog]
+  backlog_scale: 200.0

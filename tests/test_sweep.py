@@ -81,6 +81,51 @@ def test_sumo_seed_differs_per_episode_and_eval_uses_unseen_seeds():
     assert "mean_queue" in evaluate(env, Stub(), episodes=1, max_steps=2)
 
 
+def test_evaluate_command_runs_a_checkpoint_and_rejects_wrong_config(capsys=None):
+    import io
+    import contextlib
+    from traffic_drl import cli
+
+    traci_env.traci = FakeTraci()
+    with tempfile.TemporaryDirectory() as d:
+        ckpt = os.path.join(d, "dqn.npz")
+        DQNAgent(state_dim=11, hidden_sizes=(64, 64)).save(ckpt)   # matches configs/dqn.yaml
+        dqn_cfg = os.path.join(ROOT, "configs", "dqn.yaml")
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = cli.main(["evaluate", "--checkpoint", ckpt, "--config", dqn_cfg, "--episodes", "2",
+                             "--scenario", os.path.join(ROOT, "configs", "scenarios", "rush_hour.yaml")])
+        text = out.getvalue()
+        assert code == 0 and "mean:" in text and "mean_total_waiting=" in text and "episode 2:" in text
+        # a checkpoint trained with a different state design must fail loudly, not silently misread
+        try:
+            cli.main(["evaluate", "--checkpoint", ckpt, "--episodes", "1",
+                      "--config", os.path.join(ROOT, "configs", "dqn_backlog.yaml")])
+        except SystemExit as e:
+            assert "sizes" in str(e)
+        else:
+            raise AssertionError("expected SystemExit for mismatched architecture")
+
+
+def test_evaluate_command_scores_every_best_checkpoint_in_a_folder():
+    import io
+    import contextlib
+    from traffic_drl import cli
+
+    traci_env.traci = FakeTraci()
+    with tempfile.TemporaryDirectory() as d:
+        os.makedirs(os.path.join(d, "runs"))
+        for i in range(2):
+            DQNAgent(state_dim=11, hidden_sizes=(64, 64), seed=i).save(os.path.join(d, "runs", f"r{i}_best.npz"))
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = cli.main(["evaluate", "--checkpoint", d, "--config", os.path.join(ROOT, "configs", "dqn.yaml"),
+                             "--episodes", "1"])
+        rows = list(csv.DictReader(open(os.path.join(d, "best_checkpoints_eval.csv"))))
+    assert code == 0 and len(rows) == 2 and "ranked by mean_total_waiting" in out.getvalue()
+    assert {r["checkpoint"] for r in rows} == {os.path.join("runs", "r0_best.npz"), os.path.join("runs", "r1_best.npz")}
+
+
 def test_sweep_writes_ranked_outputs():
     cfg = {"dqn": {"hidden_sizes": [8], "learn_start": 50, "batch_size": 16}}
     with tempfile.TemporaryDirectory() as d:
@@ -94,6 +139,7 @@ def test_sweep_writes_ranked_outputs():
     assert [float(r["reward_mean"]) for r in ranked] == sorted((float(r["reward_mean"]) for r in ranked), reverse=True)
     assert all(r["n_seeds"] == "2" for r in ranked)
     assert sum(f.endswith("_best.npz") for f in files) == 4
+    assert sum(f.endswith("_evals.csv") for f in files) == 4   # per-run evaluation history
 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ State features (choose/order in `state.features`):
   waiting_time  summed waiting time per approach, seconds (n_approaches)
   phase         one-hot of the currently active green     (n_actions)
   phase_elapsed seconds since the last phase switch       (1)
+  backlog       vehicles waiting outside to enter         (1)
 Each group is divided by its scale so values sit near [0, 1], which
 keeps neural-net training stable.
 
@@ -31,6 +32,7 @@ DEFAULT_STATE = {
     "queue_scale": 1.0,
     "wait_scale": 1.0,
     "phase_elapsed_scale": 1.0,
+    "backlog_scale": 1.0,
 }
 DEFAULT_REWARD = {
     "queue_weight": 1.0,
@@ -39,7 +41,7 @@ DEFAULT_REWARD = {
     "switch_penalty": 0.0,
     "reward_scale": 1.0,
 }
-KNOWN_FEATURES = ("queue", "waiting_time", "phase", "phase_elapsed")
+KNOWN_FEATURES = ("queue", "waiting_time", "phase", "phase_elapsed", "backlog")
 
 
 def state_config(config: dict) -> dict:
@@ -56,11 +58,12 @@ def reward_config(config: dict) -> dict:
 
 def state_size(cfg: dict, n_approaches: int, n_actions: int) -> int:
     sizes = {"queue": n_approaches, "waiting_time": n_approaches,
-             "phase": n_actions, "phase_elapsed": 1}
+             "phase": n_actions, "phase_elapsed": 1, "backlog": 1}
     return sum(sizes[f] for f in cfg["features"])
 
 
-def build_state(cfg: dict, queues, waits, action: int, phase_elapsed: float, n_actions: int) -> np.ndarray:
+def build_state(cfg: dict, queues, waits, action: int, phase_elapsed: float, n_actions: int,
+                backlog: float = 0.0) -> np.ndarray:
     parts = []
     for f in cfg["features"]:
         if f == "queue":
@@ -73,6 +76,8 @@ def build_state(cfg: dict, queues, waits, action: int, phase_elapsed: float, n_a
             parts.append(one_hot)
         elif f == "phase_elapsed":
             parts.append(np.array([phase_elapsed / cfg["phase_elapsed_scale"]], dtype=np.float32))
+        elif f == "backlog":
+            parts.append(np.array([backlog / cfg["backlog_scale"]], dtype=np.float32))
     return np.concatenate(parts).astype(np.float32)
 
 

@@ -7,6 +7,7 @@ writes:
   sweep_summary.csv   one row per setting: mean/std over seeds, ranked
   runs/<id>_best.npz  best-so-far checkpoint of each run
   runs/<id>.csv       each run's training log (reward curve + metrics)
+  runs/<id>_evals.csv each run's periodic greedy evaluations
 Ranking uses mean_total_waiting (average halted vehicles plus vehicles
 stuck waiting to enter the network, lower is better): total delay at fixed
 demand per simulated second, valid even when demand overloads the junction.
@@ -62,6 +63,7 @@ def run_sweep(env, config: dict, grid: dict, seeds, episodes: int, out_dir: str,
                         log_path=os.path.join(runs_dir, f"{run_id}.csv"),
                         eval_every=eval_every, best_path=os.path.join(runs_dir, f"{run_id}_best.npz"),
                         history=history)
+            _write_evals(history.get("evals", []), os.path.join(runs_dir, f"{run_id}_evals.csv"))
             final = evaluate(env, agent, final_eval_episodes, max_steps=max_steps)
             row = {**setting, "seed": seed, **final, "best_episode": history.get("best_episode", "")}
             run_rows.append(row)
@@ -69,6 +71,17 @@ def run_sweep(env, config: dict, grid: dict, seeds, episodes: int, out_dir: str,
                 print("    final eval: " + "  ".join(f"{k}={final[k]:.2f}" for k in METRIC_KEYS if k in final))
 
     return _write_outputs(run_rows, list(grid), out_dir)
+
+
+def _write_evals(evals: list, path: str) -> None:
+    """Each run's periodic greedy evaluations (episode + metrics): shows
+    whether a run peaked and then drifted, which the final eval alone hides."""
+    if not evals:
+        return
+    with open(path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=list(evals[0]))
+        writer.writeheader()
+        writer.writerows(evals)
 
 
 def _write_outputs(run_rows: list, setting_keys: list, out_dir: str) -> list:
