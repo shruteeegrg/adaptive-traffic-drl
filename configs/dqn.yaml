@@ -50,7 +50,7 @@ dqn:
 
 # `traffic-drl sweep` trains every combination below x every seed, scores
 # each with a greedy evaluation on unseen seeds, and ranks the settings by
-# mean queue. 8 settings x 2 seeds x 40 episodes at ~10 s per episode is
+# mean_total_waiting (halted + backlogged vehicles). 8 settings x 2 seeds x 40 episodes at ~10 s per episode is
 # roughly 2 hours on SUMO; trim the grid or use --episodes/--seeds to shrink.
 sweep:
   episodes: 40

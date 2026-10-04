@@ -40,6 +40,12 @@ def build_parser() -> argparse.ArgumentParser:
     train.add_argument("--out-dir", default="checkpoints", help="Where the checkpoint, log and plot go")
     train.add_argument("--eval-every", type=int, help="Greedy evaluation every N episodes (keeps a best checkpoint); overrides config")
 
+    baseline = sub.add_parser("baseline", help="Evaluate the fixed-time controller on a scenario (same metrics as the agents)")
+    baseline.add_argument("--config", default="configs/dqn.yaml")
+    baseline.add_argument("--scenario", help="Scenario YAML; SUMO env only")
+    baseline.add_argument("--green", type=int, default=42, help="Green duration in seconds (default 42)")
+    baseline.add_argument("--episodes", type=int, default=3)
+
     sweep = sub.add_parser("sweep", help="Hyperparameter sweep for the DQN agent across seeds (Week 6)")
     sweep.add_argument("--config", default="configs/dqn.yaml")
     sweep.add_argument("--scenario", help="Scenario YAML to train and evaluate on; SUMO env only")
@@ -124,6 +130,28 @@ def _train(args) -> int:
     return 0
 
 
+def _baseline(args) -> int:
+    from traffic_drl.agent import evaluate
+    from traffic_drl.baseline import FixedTimeAgent
+    from traffic_drl.env import TraciEnv
+
+    env = TraciEnv(args.config, scenario=args.scenario)
+    agent = FixedTimeAgent(green_steps=args.green)
+    results = []
+    try:
+        for _ in range(args.episodes):
+            agent.reset()
+            results.append(evaluate(env, agent, episodes=1))
+    finally:
+        env.close()
+    keys = results[0].keys()
+    print(f"fixed-time baseline, green={args.green}s, {args.episodes} episodes on unseen seeds:")
+    for i, r in enumerate(results, start=1):
+        print(f"  episode {i}: " + "  ".join(f"{k}={r[k]:.2f}" for k in keys))
+    print("  mean:      " + "  ".join(f"{k}={sum(r[k] for r in results) / len(results):.2f}" for k in keys))
+    return 0
+
+
 def _sweep(args) -> int:
     from traffic_drl.config import load_config
     from traffic_drl.sweep import run_sweep
@@ -179,11 +207,14 @@ def main(argv=None) -> int:
         metrics = env.metrics()
         env.close()
         print(f"metrics: mean_queue={metrics['mean_queue']:.2f} "
+              f"mean_backlog={metrics['mean_backlog']:.2f} "
               f"avg_wait_per_vehicle={metrics['avg_wait_per_vehicle']:.1f}s "
               f"throughput_per_hour={metrics['throughput_per_hour']:.0f}")
         print(f"step() OK — ran {i + 1} steps, total_reward={total_reward:.1f}, final_state={state}")
     elif args.command == "train":
         return _train(args)
+    elif args.command == "baseline":
+        return _baseline(args)
     elif args.command == "sweep":
         return _sweep(args)
     elif args.command == "evaluate":

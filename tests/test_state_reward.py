@@ -82,6 +82,7 @@ class FakeTraci:
     def getLastStepHaltingNumber(self, e): return 4
     def getWaitingTime(self, e): return 20.0
     def getMinExpectedNumber(self): return 1
+    def getPendingVehicles(self): return ('v1', 'v2', 'v3')
     def getArrivedNumber(self): return 1
     def getDepartedNumber(self): return 2
 
@@ -165,6 +166,8 @@ def test_metrics_are_counted_per_simulated_second_including_yellow():
     assert fake.t == 5 and m["arrived"] == 5
     assert np.isclose(m["throughput_per_hour"], 5 * 3600 / 5)
     assert np.isclose(m["mean_queue"], 16.0)       # still averaged over all 5 seconds
+    assert np.isclose(m["mean_backlog"], 3.0)      # 3 vehicles waiting to be inserted, every second
+    assert np.isclose(m["mean_total_waiting"], 19.0)
 
 
 if __name__ == "__main__":

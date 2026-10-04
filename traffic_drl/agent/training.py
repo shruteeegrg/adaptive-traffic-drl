@@ -51,9 +51,10 @@ def evaluate(env, agent, episodes: int = 2, max_steps: int = None, seed_base: in
 
 
 def _score(result: dict) -> float:
-    """Higher is better. Prefer the per-second mean queue (comparable across
-    policies); fall back to reward where the env has no metrics."""
-    return -result["mean_queue"] if "mean_queue" in result else result["reward"]
+    """Higher is better. Prefer mean_total_waiting (halted + not-yet-inserted
+    vehicles, per simulated second: comparable across policies and valid
+    under overload); fall back to reward where the env has no metrics."""
+    return -result["mean_total_waiting"] if "mean_total_waiting" in result else result["reward"]
 
 
 def train_agent(env, agent, episodes: int, max_steps: int = None, log_path: str = None, verbose: bool = True,
@@ -98,10 +99,12 @@ def train_agent(env, agent, episodes: int, max_steps: int = None, log_path: str 
         with open(log_path, "w", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(["episode", "reward", "epsilon", "loss",
-                             "mean_queue", "avg_wait_per_vehicle", "throughput_per_hour"])
+                             "mean_queue", "mean_backlog", "mean_total_waiting",
+                             "avg_wait_per_vehicle", "throughput_per_hour"])
             for i, (r, e, l, m) in enumerate(zip(rewards, epsilons, losses, metrics), start=1):
                 writer.writerow([i, r, e, "" if l is None else l,
-                                 m.get("mean_queue", ""), m.get("avg_wait_per_vehicle", ""),
+                                 m.get("mean_queue", ""), m.get("mean_backlog", ""),
+                                 m.get("mean_total_waiting", ""), m.get("avg_wait_per_vehicle", ""),
                                  m.get("throughput_per_hour", "")])
     if history is not None:
         history.update(best_score=best_score, best_episode=best_episode, evals=evals)

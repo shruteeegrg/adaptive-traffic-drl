@@ -7,9 +7,10 @@ writes:
   sweep_summary.csv   one row per setting: mean/std over seeds, ranked
   runs/<id>_best.npz  best-so-far checkpoint of each run
   runs/<id>.csv       each run's training log (reward curve + metrics)
-Ranking uses mean_queue (average halted vehicles, lower is better):
-total delay at fixed demand, measured per simulated second. avg wait and
-throughput are reported alongside. Where the env has no metrics (the toy
+Ranking uses mean_total_waiting (average halted vehicles plus vehicles
+stuck waiting to enter the network, lower is better): total delay at fixed
+demand per simulated second, valid even when demand overloads the junction.
+The other metrics are reported alongside. Where the env has no metrics (the toy
 model), reward is used instead.
 """
 
@@ -21,7 +22,8 @@ import statistics
 
 from traffic_drl.agent import DQNAgent, evaluate, train_agent
 
-METRIC_KEYS = ("reward", "mean_queue", "avg_wait_per_vehicle", "throughput_per_hour")
+METRIC_KEYS = ("reward", "mean_total_waiting", "mean_queue", "mean_backlog",
+               "avg_wait_per_vehicle", "throughput_per_hour")
 
 
 def expand_grid(grid: dict) -> list:
@@ -89,7 +91,7 @@ def _write_outputs(run_rows: list, setting_keys: list, out_dir: str) -> list:
             entry[f"{m}_std"] = statistics.stdev(vals) if len(vals) > 1 else 0.0
         summary.append(entry)
 
-    rank_key = "mean_queue_mean" if "mean_queue" in metrics else "reward_mean"
+    rank_key = "mean_total_waiting_mean" if "mean_total_waiting" in metrics else "reward_mean"
     summary.sort(key=lambda e: e[rank_key], reverse=rank_key == "reward_mean")
     with open(os.path.join(out_dir, "sweep_summary.csv"), "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=list(summary[0]))
