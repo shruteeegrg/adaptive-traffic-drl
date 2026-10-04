@@ -1,0 +1,15 @@
+# Focused sweep for the tidal scenario, using the settings that did best on
+# rush hour (results_sweep_v2: learning rate 5e-4 dominated the top ranks) and
+# 4 seeds each, because seed-to-seed variance exceeded the differences between
+# settings. Run with:
+#   traffic-drl sweep --config configs/dqn_tidal.yaml --scenario configs/scenarios/tidal.yaml --out-dir results_sweep_tidal
+extends: dqn.yaml
+name: intersection_dqn_tidal
+
+sweep:
+  episodes: 80
+  seeds: [0, 1, 2, 3]
+  grid:
+    learning_rate: [0.0005]
+    target_sync_steps: [100, 400]
+    epsilon_decay: [0.93, 0.96]

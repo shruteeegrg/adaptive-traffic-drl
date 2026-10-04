@@ -126,6 +126,20 @@ def test_evaluate_command_scores_every_best_checkpoint_in_a_folder():
     assert {r["checkpoint"] for r in rows} == {os.path.join("runs", "r0_best.npz"), os.path.join("runs", "r1_best.npz")}
 
 
+def test_evaluate_and_baseline_accept_a_fresh_seed_base():
+    import io
+    import contextlib
+    from traffic_drl import cli
+
+    fake = FakeTraci()
+    traci_env.traci = fake
+    dqn_cfg = os.path.join(ROOT, "configs", "dqn.yaml")
+    with contextlib.redirect_stdout(io.StringIO()) as out:
+        cli.main(["baseline", "--config", dqn_cfg, "--episodes", "1", "--seed-base", "20000"])
+    assert int(fake.cmd[fake.cmd.index("--seed") + 1]) >= 20000
+    assert "seeds from 20000" in out.getvalue()
+
+
 def test_sweep_writes_ranked_outputs():
     cfg = {"dqn": {"hidden_sizes": [8], "learn_start": 50, "batch_size": 16}}
     with tempfile.TemporaryDirectory() as d:

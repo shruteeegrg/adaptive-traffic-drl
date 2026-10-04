@@ -45,6 +45,7 @@ def build_parser() -> argparse.ArgumentParser:
     baseline.add_argument("--scenario", help="Scenario YAML; SUMO env only")
     baseline.add_argument("--green", type=int, default=42, help="Green duration in seconds (default 42)")
     baseline.add_argument("--episodes", type=int, default=3)
+    baseline.add_argument("--seed-base", type=int, default=10000, help="First SUMO seed for evaluation episodes")
 
     sweep = sub.add_parser("sweep", help="Hyperparameter sweep for the DQN agent across seeds (Week 6)")
     sweep.add_argument("--config", default="configs/dqn.yaml")
@@ -60,6 +61,8 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate.add_argument("--config", default="configs/dqn.yaml",
                           help="Config the checkpoint was trained with (state design, network size)")
     evaluate.add_argument("--episodes", type=int, default=3)
+    evaluate.add_argument("--seed-base", type=int, default=10000,
+                          help="First SUMO seed for evaluation episodes (use a fresh value to avoid seeds used for selection)")
 
     compare = sub.add_parser("compare", help="Compare DQN agent vs. fixed-time baseline")
     compare.add_argument("--config", required=True)
@@ -168,7 +171,7 @@ def _evaluate(args) -> int:
                 agent.load(path)
             except ValueError as e:
                 raise SystemExit(f"{e}\n(is --config the config this checkpoint was trained with?)")
-            results = [evaluate(env, agent, episodes=1) for _ in range(args.episodes)]
+            results = [evaluate(env, agent, episodes=1, seed_base=args.seed_base) for _ in range(args.episodes)]
             mean = {k: sum(r[k] for r in results) / len(results) for k in results[0]}
             table.append((path, results, mean))
     finally:
@@ -177,7 +180,7 @@ def _evaluate(args) -> int:
     where = args.scenario or "default demand"
     if len(table) == 1:
         path, results, mean = table[0]
-        print(f"{path} on {where}, {args.episodes} episodes on unseen seeds:")
+        print(f"{path} on {where}, {args.episodes} episodes, seeds from {args.seed_base}:")
         for i, r in enumerate(results, start=1):
             print(f"  episode {i}: " + "  ".join(f"{k}={r[k]:.2f}" for k in r))
         print("  mean:      " + "  ".join(f"{k}={v:.2f}" for k, v in mean.items()))
@@ -210,13 +213,13 @@ def _baseline(args) -> int:
     try:
         for _ in range(args.episodes):
             agent.reset()
-            results.append(evaluate(env, agent, episodes=1))
+            results.append(evaluate(env, agent, episodes=1, seed_base=args.seed_base))
     finally:
         env.close()
     keys = results[0].keys()
     print(f"fixed-time baseline, green={green_steps * env.decision_interval:.0f}s "
           f"(requested {args.green}s, decision interval {env.decision_interval:.0f}s), "
-          f"{args.episodes} episodes on unseen seeds:")
+          f"{args.episodes} episodes, seeds from {args.seed_base}:")
     for i, r in enumerate(results, start=1):
         print(f"  episode {i}: " + "  ".join(f"{k}={r[k]:.2f}" for k in keys))
     print("  mean:      " + "  ".join(f"{k}={sum(r[k] for r in results) / len(results):.2f}" for k in keys))
