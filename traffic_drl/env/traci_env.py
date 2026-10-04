@@ -126,6 +126,8 @@ class TraciEnv:
         self._current_green_phase = requested_phase
         self._advance(self.step_length)
 
+        self._switches += int(switched)
+        self._green_seconds[action] += self.step_length
         self._phase_elapsed = self.step_length if switched else self._phase_elapsed + self.step_length
         self._action = action
         state = self._get_state()
@@ -142,6 +144,8 @@ class TraciEnv:
         self._backlog_seconds = 0.0  # same, for vehicles waiting outside the network to be inserted
         self._arrived = 0           # vehicles that completed their trip
         self._departed = 0          # vehicles that entered the network
+        self._switches = 0          # phase changes the agent caused
+        self._green_seconds = [0.0, 0.0]  # green time given to each action's phase
 
     def _advance(self, seconds: float):
         n_steps = max(1, round(seconds / self.step_length))
@@ -168,6 +172,8 @@ class TraciEnv:
           mean_total_waiting    mean_queue + mean_backlog -- the ranking metric
           avg_wait_per_vehicle  halted vehicle-seconds / vehicles entered (s)
           throughput_per_hour   completed trips, scaled to one hour
+          switches              phase changes (flipping vs stuck policies)
+          ns_green_fraction     share of green time given to north-south
         """
         elapsed = max(self._elapsed, 1e-9)
         mean_queue = self._queue_seconds / elapsed
@@ -179,6 +185,8 @@ class TraciEnv:
             "avg_wait_per_vehicle": self._queue_seconds / max(self._departed, 1),
             "throughput_per_hour": self._arrived * 3600.0 / elapsed,
             "arrived": self._arrived,
+            "switches": self._switches,
+            "ns_green_fraction": self._green_seconds[0] / max(sum(self._green_seconds), 1e-9),
         }
 
     def _read_edges(self):

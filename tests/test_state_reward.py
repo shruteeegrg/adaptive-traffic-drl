@@ -168,6 +168,7 @@ def test_metrics_are_counted_per_simulated_second_including_yellow():
     assert np.isclose(m["mean_queue"], 16.0)       # still averaged over all 5 seconds
     assert np.isclose(m["mean_backlog"], 3.0)      # 3 vehicles waiting to be inserted, every second
     assert np.isclose(m["mean_total_waiting"], 19.0)
+    assert m["switches"] == 1 and np.isclose(m["ns_green_fraction"], 0.5)   # one NS step, one EW step
 
 
 if __name__ == "__main__":

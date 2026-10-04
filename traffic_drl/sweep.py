@@ -23,7 +23,7 @@ import statistics
 from traffic_drl.agent import DQNAgent, evaluate, train_agent
 
 METRIC_KEYS = ("reward", "mean_total_waiting", "mean_queue", "mean_backlog",
-               "avg_wait_per_vehicle", "throughput_per_hour")
+               "avg_wait_per_vehicle", "throughput_per_hour", "switches", "ns_green_fraction")
 
 
 def expand_grid(grid: dict) -> list:

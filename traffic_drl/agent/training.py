@@ -100,12 +100,14 @@ def train_agent(env, agent, episodes: int, max_steps: int = None, log_path: str 
             writer = csv.writer(f)
             writer.writerow(["episode", "reward", "epsilon", "loss",
                              "mean_queue", "mean_backlog", "mean_total_waiting",
-                             "avg_wait_per_vehicle", "throughput_per_hour"])
+                             "avg_wait_per_vehicle", "throughput_per_hour",
+                             "switches", "ns_green_fraction"])
             for i, (r, e, l, m) in enumerate(zip(rewards, epsilons, losses, metrics), start=1):
                 writer.writerow([i, r, e, "" if l is None else l,
                                  m.get("mean_queue", ""), m.get("mean_backlog", ""),
                                  m.get("mean_total_waiting", ""), m.get("avg_wait_per_vehicle", ""),
-                                 m.get("throughput_per_hour", "")])
+                                 m.get("throughput_per_hour", ""),
+                                 m.get("switches", ""), m.get("ns_green_fraction", "")])
     if history is not None:
         history.update(best_score=best_score, best_episode=best_episode, evals=evals)
     return rewards
