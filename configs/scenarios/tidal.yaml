@@ -1,0 +1,8 @@
+# Uneven, time-varying demand: north-south heavy (1100 veh/h per approach) for
+# 15 minutes while east-west is light (300), then swapped, repeating. A fixed
+# 50/50 timer wastes green time on the idle axis; an adaptive controller can
+# follow the demand. Regenerate with:
+#   python scripts/generate_routes.py --out configs/scenarios/tidal.rou.xml --tidal 1100 300 --period 900
+name: tidal
+description: Heavy demand alternates between the NS and EW axes every 900 s.
+route_file: tidal.rou.xml
