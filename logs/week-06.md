@@ -112,6 +112,21 @@
   history in the sweep; optional `backlog` state feature and
   `configs/dqn_backlog.yaml` (12 inputs) as a separate experiment.
 
+## Follow-up 5: best-so-far checkpoints from the sweep (rush hour, 3 episodes, seeds 10000+)
+
+- Baseline: total waiting 139 (episodes 142 / 137), throughput 3017/h, 41 switches.
+- Best-so-far checkpoints are much better than the sweep's final policies:
+  top four 134.3 / 140.3 / 140.3 / 144.2 total waiting; best throughput 3046/h
+  (lr 5e-4, target sync 400, decay 0.93, seed 1 -- whose FINAL policy scored 207, so it
+  peaked and drifted). 7 of 16 within ~6% of the baseline or better.
+  Several runs never learned (e.g. 425 with 1 switch: stuck policy).
+- Reading: on symmetric rush hour the DQN roughly ties the fixed timer. The 134
+  is not yet a win: 3 episodes, baseline episodes differ by ~4%, and it is the best of
+  16 candidates (selection bias). Needs confirmation on fresh seeds with more
+  episodes (`--seed-base`).
+- Added `--seed-base` to `evaluate` / `baseline`, and `configs/dqn_tidal.yaml`
+  (lr 5e-4, 2 target-sync x 2 decay settings, 4 seeds) for a focused sweep on `tidal`.
+
 ## Planned for next week (Week 7)
 
 - [ ] Run the sweep on real SUMO (rush hour), pick settings, train and ship the
