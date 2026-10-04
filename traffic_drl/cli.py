@@ -6,6 +6,8 @@ Usage:
     traffic-drl evaluate --checkpoint checkpoints/dqn_final.npz --scenario configs/scenarios/rush_hour.yaml
     traffic-drl compare --config configs/<name>.yaml --scenarios rush_hour,low_traffic
     traffic-drl sweep --config configs/dqn.yaml --scenario configs/scenarios/rush_hour.yaml
+    traffic-drl plot training --log <log.csv> --out <fig.png>
+    traffic-drl plot compare --item SCENARIO:LABEL=<results.csv> ... --out <fig.png>
     traffic-drl demo
 
 Each subcommand should stay a thin wrapper around traffic_drl.env /
@@ -45,7 +47,23 @@ def build_parser() -> argparse.ArgumentParser:
     baseline.add_argument("--scenario", help="Scenario YAML; SUMO env only")
     baseline.add_argument("--green", type=int, default=42, help="Green duration in seconds (default 42)")
     baseline.add_argument("--episodes", type=int, default=3)
+    baseline.add_argument("--save-csv", help="Write per-episode metrics to this CSV (for `plot compare`)")
     baseline.add_argument("--seed-base", type=int, default=10000, help="First SUMO seed for evaluation episodes")
+
+    plot = sub.add_parser("plot", help="Draw charts from saved logs and results")
+    plot_sub = plot.add_subparsers(dest="plot_kind", required=True)
+    pt = plot_sub.add_parser("training", help="Training/evaluation curves from a training log CSV")
+    pt.add_argument("--log", required=True, help="Training log CSV (e.g. checkpoints/dqn_rewards.csv)")
+    pt.add_argument("--evals", help="Evaluation-history CSV (a sweep run's *_evals.csv)")
+    pt.add_argument("--out", required=True, help="Output PNG")
+    pt.add_argument("--title")
+    pc = plot_sub.add_parser("compare", help="Controllers side by side from `--save-csv` results")
+    pc.add_argument("--item", action="append", required=True, metavar="SCENARIO:LABEL=CSV",
+                    help="One result file; repeat for each controller/scenario, e.g. "
+                         "rush_hour:Fixed-time=base.csv  rush_hour:DQN=dqn.csv")
+    pc.add_argument("--metrics", help="Comma-separated metric names (default: total waiting, throughput, switches)")
+    pc.add_argument("--out", required=True, help="Output PNG")
+    pc.add_argument("--title")
 
     sweep = sub.add_parser("sweep", help="Hyperparameter sweep for the DQN agent across seeds (Week 6)")
     sweep.add_argument("--config", default="configs/dqn.yaml")
@@ -61,6 +79,7 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate.add_argument("--config", default="configs/dqn.yaml",
                           help="Config the checkpoint was trained with (state design, network size)")
     evaluate.add_argument("--episodes", type=int, default=3)
+    evaluate.add_argument("--save-csv", help="Write per-episode metrics to this CSV (single checkpoint only; for `plot compare`)")
     evaluate.add_argument("--seed-base", type=int, default=10000,
                           help="First SUMO seed for evaluation episodes (use a fresh value to avoid seeds used for selection)")
 
@@ -143,6 +162,40 @@ def _train(args) -> int:
     return 0
 
 
+def _save_results_csv(results: list, path: str) -> None:
+    import csv
+    import os
+
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    with open(path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["episode", *results[0].keys()])
+        for i, r in enumerate(results, start=1):
+            writer.writerow([i, *r.values()])
+    print(f"wrote {path}")
+
+
+def _plot(args) -> int:
+    from traffic_drl import viz
+
+    if args.plot_kind == "training":
+        print("wrote", viz.plot_training(args.log, args.out, evals_path=args.evals, title=args.title))
+        return 0
+
+    results = {}
+    for item in args.item:
+        try:
+            key, path = item.rsplit("=", 1)
+            scenario, label = key.split(":", 1)
+        except ValueError:
+            raise SystemExit(f"bad --item {item!r}; expected SCENARIO:LABEL=CSV")
+        results.setdefault(scenario, {})[label] = viz.read_csv(path)
+    metrics = tuple(args.metrics.split(",")) if args.metrics else viz.plots.COMPARE_DEFAULT
+    print(viz.comparison_table(results, metrics))
+    print("wrote", viz.plot_comparison(results, args.out, metrics=metrics, title=args.title))
+    return 0
+
+
 def _evaluate(args) -> int:
     import csv
     import glob
@@ -178,8 +231,12 @@ def _evaluate(args) -> int:
         env.close()
 
     where = args.scenario or "default demand"
+    if args.save_csv and len(table) > 1:
+        raise SystemExit("--save-csv works with a single checkpoint, not a folder")
     if len(table) == 1:
         path, results, mean = table[0]
+        if args.save_csv:
+            _save_results_csv(results, args.save_csv)
         print(f"{path} on {where}, {args.episodes} episodes, seeds from {args.seed_base}:")
         for i, r in enumerate(results, start=1):
             print(f"  episode {i}: " + "  ".join(f"{k}={r[k]:.2f}" for k in r))
@@ -216,6 +273,8 @@ def _baseline(args) -> int:
             results.append(evaluate(env, agent, episodes=1, seed_base=args.seed_base))
     finally:
         env.close()
+    if args.save_csv:
+        _save_results_csv(results, args.save_csv)
     keys = results[0].keys()
     print(f"fixed-time baseline, green={green_steps * env.decision_interval:.0f}s "
           f"(requested {args.green}s, decision interval {env.decision_interval:.0f}s), "
@@ -287,6 +346,8 @@ def main(argv=None) -> int:
         print(f"step() OK — ran {i + 1} steps, total_reward={total_reward:.1f}, final_state={state}")
     elif args.command == "train":
         return _train(args)
+    elif args.command == "plot":
+        return _plot(args)
     elif args.command == "baseline":
         return _baseline(args)
     elif args.command == "sweep":
