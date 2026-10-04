@@ -127,6 +127,24 @@
 - Added `--seed-base` to `evaluate` / `baseline`, and `configs/dqn_tidal.yaml`
   (lr 5e-4, 2 target-sync x 2 decay settings, 4 seeds) for a focused sweep on `tidal`.
 
+## Follow-up 6: plotting module and result files
+
+- `traffic_drl/viz`: `plot_training` (training curves + optional evaluation
+  history), `plot_comparison` (controllers side by side per scenario, bars =
+  mean over episodes, whiskers = std, dots = episodes) and `comparison_table`
+  (the same numbers as text). Baseline is always neutral gray; learned
+  controllers take blue, then orange (palette validated: CVD / normal-vision
+  separation pass). Drawn by one implementation for the CLI and, later, the app.
+- CLI: `traffic-drl plot training --log ... [--evals ...] --out fig.png`,
+  `traffic-drl plot compare --item SCENARIO:LABEL=results.csv ... --out fig.png`;
+  `evaluate` / `baseline` gain `--save-csv` (per-episode metrics).
+- First look at a real training log (one sweep run on rush hour): total waiting
+  falls ~275 -> ~160 by episode 40, then drifts back up to ~230 while switches settle
+  at ~20 -- the drift the best-checkpoint selection is guarding against.
+- Shipped checkpoint renamed `dqn_final.npz` (NumPy archive, not a torch file) in
+  the docs and `.gitignore`.
+- Commit messages no longer carry week numbers (history reworded; file contents unchanged).
+
 ## Planned for next week (Week 7)
 
 - [ ] Run the sweep on real SUMO (rush hour), pick settings, train and ship the
