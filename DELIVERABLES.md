@@ -17,13 +17,14 @@ documentation *of* the product, not the deliverable itself.
   into the code.
 - **CLI surface:**
   - `traffic-drl train --agent {qtable,dqn} --config configs/<name>.yaml`
-  - `traffic-drl evaluate --checkpoint checkpoints/dqn_final.pt --scenario configs/scenarios/rush_hour.yaml`
+  - `traffic-drl evaluate --checkpoint checkpoints/dqn_final.npz --scenario configs/scenarios/rush_hour.yaml`
   - `traffic-drl compare --config configs/<name>.yaml --scenarios rush_hour,low_traffic`
   - `traffic-drl demo` — launches the interactive app
 - **Interactive demo app:** `traffic_drl/app.py` (Streamlit) — pick
   Fixed-Timer or DQN Agent, pick a scenario, run it, watch wait
   time/throughput/reward update live side by side.
-- **Shipped artifact:** a trained checkpoint (`checkpoints/dqn_final.pt`)
+- **Shipped artifact:** a trained checkpoint (`checkpoints/dqn_final.npz`, a NumPy
+  archive of the network weights -- no PyTorch involved)
   committed (or attached as a release asset) so the product is runnable
   without retraining from zero.
 - **Done when:** someone who clones the repo, runs `pip install -e .`, and
@@ -75,7 +76,7 @@ documentation *of* the product, not the deliverable itself.
 - **Done when:** the Q-table baseline converges on the simplified
   single-lane problem, and the DQN agent trains to a stable (not
   necessarily optimal) policy on the full intersection, with a saved
-  checkpoint (`checkpoints/dqn_final.pt`) and a logged reward curve, both
+  checkpoint (`checkpoints/dqn_final.npz`) and a logged reward curve, both
   reachable through `traffic-drl train`.
 
 ## 4. Performance Dashboard (part of the product + report evidence)

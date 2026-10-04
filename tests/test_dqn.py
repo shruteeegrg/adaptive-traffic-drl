@@ -102,9 +102,9 @@ def test_greedy_act_is_argmax_and_epsilon_decays():
 def test_save_load_roundtrip():
     a, b = _tiny_agent(seed=0), _tiny_agent(seed=1)
     with tempfile.TemporaryDirectory() as d:
-        path = os.path.join(d, "dqn_final.pt")
+        path = os.path.join(d, "dqn_final.weights")
         a.save(path)
-        assert os.path.exists(path)  # exact path, no appended ".npz"
+        assert os.path.exists(path)  # exact path, even with an unusual extension (np.savez would append ".npz")
         b.load(path)
     s = np.array([0.1, 0.4], dtype=np.float32)
     assert np.array_equal(a.q_values(s), b.q_values(s))

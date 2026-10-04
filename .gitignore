@@ -12,12 +12,12 @@ tripinfo.xml
 *.sumocfg.bak
 
 # Trained models / checkpoints — ignore intermediate ones, but the final
-# shipped checkpoint (checkpoints/dqn_final.pt) is intentionally committed
+# shipped checkpoint (checkpoints/dqn_final.npz) is intentionally committed
 # so the product is runnable without retraining. Add it with `git add -f`
 # when it's ready (Week 6/10).
 checkpoints/*
 !checkpoints/.gitkeep
-!checkpoints/dqn_final.pt
+!checkpoints/dqn_final.npz
 
 # Logs / data dumps
 *.log

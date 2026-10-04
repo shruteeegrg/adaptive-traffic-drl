@@ -3,7 +3,7 @@
 Usage:
     traffic-drl env-check --config configs/intersection.yaml
     traffic-drl train --agent {qtable,dqn} --config configs/<name>.yaml
-    traffic-drl evaluate --checkpoint checkpoints/dqn_final.pt --scenario configs/scenarios/rush_hour.yaml
+    traffic-drl evaluate --checkpoint checkpoints/dqn_final.npz --scenario configs/scenarios/rush_hour.yaml
     traffic-drl compare --config configs/<name>.yaml --scenarios rush_hour,low_traffic
     traffic-drl sweep --config configs/dqn.yaml --scenario configs/scenarios/rush_hour.yaml
     traffic-drl demo

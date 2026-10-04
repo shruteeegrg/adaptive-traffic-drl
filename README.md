@@ -73,7 +73,7 @@ See `WORKFLOW.md` for full branch/PR conventions.
 | 3 | Baseline Q-table agent | Q-table RL agent on a simplified single-lane state space, wired into `traffic-drl train --agent qtable` |
 | 4 | State/reward design + NN architecture | Full intersection state/action/reward design (config-driven hyperparams); hand-written neural net unit-tested on dummy data |
 | 5 | DQN training loop | Replay buffer, target network, epsilon-greedy policy, backprop step, wired into `traffic-drl train --agent dqn` |
-| 6 | Training & convergence debugging | Reward-curve tracking, hyperparameter sweeps, model checkpointing (`checkpoints/dqn_final.pt`) |
+| 6 | Training & convergence debugging | Reward-curve tracking, hyperparameter sweeps, model checkpointing (`checkpoints/dqn_final.npz`) |
 | 7 | Visualization module | `traffic_drl/viz` — plots from saved logs, wired into `traffic-drl evaluate` |
 | 8 | Fixed-timer baseline + scenarios + demo app v1 | Baseline controller + `rush_hour`/`low_traffic` scenario configs; `traffic-drl compare` working; first working version of the Streamlit demo app |
 | 9 | Comparative analysis + app polish | Aggregated metrics via `traffic-drl compare`, statistical comparison, results section drafted; side-by-side view in the demo app |
