@@ -32,6 +32,24 @@
   and best checkpoints under `runs/`.
 - [x] `tests/test_sweep.py` (6 tests); full suite 46 tests.
 
+## Follow-up: first 10-episode real-SUMO run changed the metric
+
+- 10 training episodes + 2 evaluations ran in 31.5 s (~2 s/episode, far below the
+  ~10 s estimate), so a full sweep is ~30 minutes, not hours.
+- Greedy evaluation on unseen seeds (rush hour): episode 5 mean_queue 3.22,
+  throughput 1782/h; episode 10 mean_queue 3.29, throughput 1780/h.
+- Problem spotted: arrived vehicles imply ~1780/h served against 3600/h offered,
+  yet mean_queue is only ~3. Approach edges are 92.8 m (~12 vehicles), so overflow
+  waits in SUMO's insertion backlog, which `mean_queue` cannot see. Ranking by
+  mean_queue could therefore reward policies that merely hide congestion.
+- [x] Added `mean_backlog` (vehicles waiting to be inserted, per simulated second)
+  and `mean_total_waiting` = mean_queue + mean_backlog. Best-checkpoint selection
+  and sweep ranking now use `mean_total_waiting`.
+- [x] `FixedTimeAgent` (42 s greens, matching the network's own plan) and
+  `traffic-drl baseline`, evaluated through the same loop and metrics as the
+  agents. Pulled forward from Week 8 because no DQN number can be interpreted
+  without it.
+
 ## Planned for next week (Week 7)
 
 - [ ] Run the sweep on real SUMO (rush hour), pick settings, train and ship the
