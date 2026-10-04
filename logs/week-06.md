@@ -93,6 +93,25 @@
   every 15 min (1100 vs 300 veh/h per approach). A 50/50 timer should struggle
   on the heavy axis there; an adaptive controller can follow the demand.
 
+## Follow-up 4: first full sweep after the reward fix (results_sweep_v2)
+
+- 8 settings x 2 seeds x 80 episodes on rush hour, final-policy evaluation on
+  unseen seeds vs the fixed-time baseline (total waiting 139, throughput 3017/h,
+  41 switches): best DQN runs 177 / 180 / 203 total waiting (throughput 2914 /
+  2930 / 2873/h); **no run beat the baseline**, best is ~27% worse.
+- Seed dominates hyperparameters: the same setting gives e.g. 177 (seed 0) vs 375
+  (seed 1). Bad runs are stuck policies (1-20 switches; ns_green_fraction 0.00 /
+  0.12 / 0.85) that starve one direction -- the failure mode moved from
+  "always flip" to "never switch". Std over 2 seeds (up to ~170) exceeds the gaps
+  between settings, so the ranking is mostly noise.
+- The table reports the FINAL policy, but each run also kept a best-so-far
+  checkpoint; at 20 episodes the quick run had reached 143, so runs may peak and
+  then drift. Not yet evaluated.
+- Added: `traffic-drl evaluate` (checkpoint or a folder of `*_best.npz`, ranked,
+  same metrics and seeds as `baseline`); per-run `_evals.csv` evaluation
+  history in the sweep; optional `backlog` state feature and
+  `configs/dqn_backlog.yaml` (12 inputs) as a separate experiment.
+
 ## Planned for next week (Week 7)
 
 - [ ] Run the sweep on real SUMO (rush hour), pick settings, train and ship the
