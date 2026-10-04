@@ -105,7 +105,7 @@ Progress checklist (tick off as PRs merge):
 - [x] Week 3 — Baseline Q-table agent (verified on toy queue model; SUMO run pending)
 - [x] Week 4 — State/reward design + NN architecture (tested with a fake traci; SUMO run pending)
 - [x] Week 5 — DQN training loop (verified on toy queue model; SUMO run pending)
-- [ ] Week 6 — Training & convergence debugging
+- [~] Week 6 — Training & convergence debugging (tooling done; real-SUMO sweep pending)
 - [ ] Week 7 — Visualization module
 - [ ] Week 8 — Fixed-timer baseline + scenarios + demo app v1
 - [ ] Week 9 — Comparative analysis + app polish
