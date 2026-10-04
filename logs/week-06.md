@@ -79,6 +79,20 @@
   (`decision_interval`), printing the effective green. Earlier `results_*`
   folders were produced with the old reward and are obsolete for comparison.
 
+## Follow-up 3: reward fix verified on real SUMO; tidal scenario
+
+- Windows, rush hour, 20 DQN episodes (eps still 0.38): switches 55 (was 450),
+  mean_total_waiting 224 (ep 10) -> 143 (ep 20) vs fixed-time baseline 139
+  (2 episodes, 137-142), throughput 2996 vs 3017/h. The exploit is gone and the
+  agent improves with training; it is not yet clearly better than the timer.
+  Fixed-time baseline with 5 s decisions: green 40 s, 41 switches, queue 19.5,
+  backlog 120, total waiting 139, throughput 3017/h.
+- Symmetric rush hour (900/approach) is close to ideal for a 50/50 timer, so a
+  tie there is plausible. Added `tidal` (`configs/scenarios/tidal.yaml`,
+  `generate_routes.py --tidal 1100 300 --period 900`): heavy axis alternates
+  every 15 min (1100 vs 300 veh/h per approach). A 50/50 timer should struggle
+  on the heavy axis there; an adaptive controller can follow the demand.
+
 ## Planned for next week (Week 7)
 
 - [ ] Run the sweep on real SUMO (rush hour), pick settings, train and ship the
