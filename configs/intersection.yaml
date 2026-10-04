@@ -45,6 +45,13 @@ approaches:
   - name: south
     incoming_edge: B4A1
 
+# State seen by the agent: per-approach queue plus the active green phase
+# (one-hot). Without the phase the Q-table cannot tell "switch" from "stay"
+# and (Week 6 toy experiments) fails to learn. NOTE: qtable.queue_bins apply
+# to every feature, so the first edge must be <= 1 or the phase bit is lost.
+state:
+  features: [queue, phase]
+
 # Tabular Q-learning baseline (Week 3). Read by traffic_drl.agent.QTableAgent
 # and the `train --agent qtable` loop -- nothing here is hardcoded in Python.
 qtable:

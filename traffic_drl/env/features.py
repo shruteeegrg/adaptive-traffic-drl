@@ -13,10 +13,15 @@ State features (choose/order in `state.features`):
 Each group is divided by its scale so values sit near [0, 1], which
 keeps neural-net training stable.
 
-Reward: -(queue_weight * total queue + wait_weight * total waiting time)
-        - switch_penalty * (1 if the phase switched this step)
-divided by `reward_scale`. With the defaults (queue only, no penalty,
-scale 1) this equals the Week 2 reward, -sum(queue).
+Reward is charged per SIMULATED SECOND, not per agent decision. Every
+second the env accrues  queue_weight * halted + wait_weight * waiting time
++ backlog_weight * vehicles waiting to enter  (accrue_cost), and a
+decision's reward is  -(accrued cost + switch_penalty if it switched) /
+reward_scale.  Charging per decision instead is exploitable: a phase switch
+burns 3 s of yellow inside one decision, so flipping every step makes
+congestion go uncharged (the Week 6 sweep's degenerate "always flip" policy).
+With the defaults (queue only, 1 s decisions) this equals the Week 2
+reward, -sum(queue).
 """
 
 import numpy as np
@@ -30,6 +35,7 @@ DEFAULT_STATE = {
 DEFAULT_REWARD = {
     "queue_weight": 1.0,
     "wait_weight": 0.0,
+    "backlog_weight": 0.0,
     "switch_penalty": 0.0,
     "reward_scale": 1.0,
 }
@@ -70,8 +76,14 @@ def build_state(cfg: dict, queues, waits, action: int, phase_elapsed: float, n_a
     return np.concatenate(parts).astype(np.float32)
 
 
-def compute_reward(cfg: dict, queues, waits, switched: bool) -> float:
-    cost = (cfg["queue_weight"] * float(np.sum(queues))
-            + cfg["wait_weight"] * float(np.sum(waits))
-            + cfg["switch_penalty"] * (1.0 if switched else 0.0))
-    return -cost / cfg["reward_scale"]
+def accrue_cost(cfg: dict, queue_total: float, wait_total: float, backlog_total: float) -> float:
+    """Cost per simulated second from instantaneous totals across approaches."""
+    return (cfg["queue_weight"] * queue_total
+            + cfg["wait_weight"] * wait_total
+            + cfg["backlog_weight"] * backlog_total)
+
+
+def compute_reward(cfg: dict, accrued_cost: float, switched: bool) -> float:
+    """Reward for one decision, given the cost accrued over all the
+    simulated seconds it spanned (yellow included)."""
+    return -(accrued_cost + cfg["switch_penalty"] * (1.0 if switched else 0.0)) / cfg["reward_scale"]

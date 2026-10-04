@@ -74,6 +74,16 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _toy_env(agent: str, seed: int):
+    """Toy queue model sized for the agent: the DQN wants scaled inputs and
+    scaled rewards; the Q-table wants raw queue counts for its buckets."""
+    from traffic_drl.env import SimpleQueueEnv
+
+    dqn = agent == "dqn"
+    return SimpleQueueEnv(seed=seed, include_phase=True,
+                          state_scale=20.0 if dqn else 1.0, reward_scale=30.0 if dqn else 1.0)
+
+
 def _train(args) -> int:
     import os
 
@@ -87,14 +97,11 @@ def _train(args) -> int:
     episodes = args.episodes or params.get("episodes", 30)
 
     if args.env == "toy":
-        from traffic_drl.env import SimpleQueueEnv
-
         if args.scenario:
             print("note: --scenario is ignored with --env toy")
 
         # The toy model's state is sized for the agent, not for the YAML.
-        env = SimpleQueueEnv(seed=params.get("seed", 0), state_scale=20.0,
-                             include_phase=args.agent == "dqn")
+        env = _toy_env(args.agent, params.get("seed", 0))
         state_size = env.state_size
     else:
         from traffic_drl.env import TraciEnv
@@ -136,7 +143,8 @@ def _baseline(args) -> int:
     from traffic_drl.env import TraciEnv
 
     env = TraciEnv(args.config, scenario=args.scenario)
-    agent = FixedTimeAgent(green_steps=args.green)
+    green_steps = max(1, round(args.green / env.decision_interval))  # decisions per green
+    agent = FixedTimeAgent(green_steps=green_steps)
     results = []
     try:
         for _ in range(args.episodes):
@@ -145,7 +153,9 @@ def _baseline(args) -> int:
     finally:
         env.close()
     keys = results[0].keys()
-    print(f"fixed-time baseline, green={args.green}s, {args.episodes} episodes on unseen seeds:")
+    print(f"fixed-time baseline, green={green_steps * env.decision_interval:.0f}s "
+          f"(requested {args.green}s, decision interval {env.decision_interval:.0f}s), "
+          f"{args.episodes} episodes on unseen seeds:")
     for i, r in enumerate(results, start=1):
         print(f"  episode {i}: " + "  ".join(f"{k}={r[k]:.2f}" for k in keys))
     print("  mean:      " + "  ".join(f"{k}={sum(r[k] for r in results) / len(results):.2f}" for k in keys))
@@ -166,7 +176,7 @@ def _sweep(args) -> int:
     if args.env == "toy":
         from traffic_drl.env import SimpleQueueEnv
 
-        env = SimpleQueueEnv(seed=0, state_scale=20.0, include_phase=True)
+        env = _toy_env("dqn", 0)
     else:
         from traffic_drl.env import TraciEnv
 

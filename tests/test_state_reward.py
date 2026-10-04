@@ -24,7 +24,9 @@ def test_default_state_and_reward_match_week2():
     cfg, rcfg = features.state_config({}), features.reward_config({})
     s = features.build_state(cfg, [3, 1, 0, 2], [9, 9, 9, 9], 1, 5, 2)
     assert s.tolist() == [3, 1, 0, 2]
-    assert features.compute_reward(rcfg, [3, 1, 0, 2], [9, 9, 9, 9], True) == -6.0
+    cost = features.accrue_cost(rcfg, queue_total=6, wait_total=36, backlog_total=50)
+    assert cost == 6.0                                   # only queue counts by default
+    assert features.compute_reward(rcfg, cost, True) == -6.0
 
 
 def test_full_state_layout_and_scaling():
@@ -43,10 +45,12 @@ def test_unknown_feature_rejected():
 
 
 def test_reward_weights_and_switch_penalty():
-    r = features.reward_config({"reward": {"queue_weight": 1, "wait_weight": 0.5,
+    r = features.reward_config({"reward": {"queue_weight": 1, "wait_weight": 0.5, "backlog_weight": 2,
                                            "switch_penalty": 4, "reward_scale": 2}})
-    assert features.compute_reward(r, [2, 2], [10, 0], False) == -(4 + 5) / 2
-    assert features.compute_reward(r, [2, 2], [10, 0], True) == -(4 + 5 + 4) / 2
+    cost = features.accrue_cost(r, queue_total=4, wait_total=10, backlog_total=3)
+    assert cost == 4 + 5 + 6
+    assert features.compute_reward(r, cost, False) == -15 / 2
+    assert features.compute_reward(r, cost, True) == -(15 + 4) / 2
 
 
 def test_config_extends_overrides_and_inherits():
@@ -96,7 +100,7 @@ def test_traci_env_default_config_is_unchanged():
     fake = FakeTraci()
     env = _env("intersection.yaml", fake)
     s = env.reset()
-    assert s.tolist() == [4, 4, 4, 4]
+    assert s.tolist() == [4, 4, 4, 4, 1, 0]       # 4 queues + one-hot NS phase (Week 6 default)
     s, r, done, _ = env.step(0)
     assert r == -16.0 and not done
 
@@ -104,17 +108,42 @@ def test_traci_env_default_config_is_unchanged():
 def test_traci_env_full_state_tracks_phase_and_switch_penalty():
     fake = FakeTraci()
     env = _env("dqn.yaml", fake)
+    assert env.decision_interval == 5
     s = env.reset()
     assert s.shape == (11,) == (env.state_size,)
+    # cost per simulated second = queue 16 + 0.1 * 3 pending = 16.3; 5 s per decision
     s, r, _, _ = env.step(0)                       # stay on NS: no switch
-    assert s[8:10].tolist() == [1, 0] and np.isclose(s[10], 1 / 60)
-    assert np.isclose(r, -(16 + 0.05 * 80) / 10)
+    assert fake.t == 5
+    assert s[8:10].tolist() == [1, 0] and np.isclose(s[10], 5 / 60)
+    assert np.isclose(r, -(5 * 16.3) / 50)
     s, _, _, _ = env.step(0)
-    assert np.isclose(s[10], 2 / 60)               # time-in-phase accumulates
-    s, r, _, _ = env.step(1)                       # switch to EW: penalty + yellow clearance
-    assert s[8:10].tolist() == [0, 1] and np.isclose(s[10], 1 / 60)
-    assert np.isclose(r, -(16 + 4 + 2) / 10)
+    assert np.isclose(s[10], 10 / 60)              # time-in-phase accumulates
+    s, r, _, _ = env.step(1)                       # switch: 3 s yellow + 5 s green, all charged
+    assert fake.t == 5 + 5 + 8
+    assert s[8:10].tolist() == [0, 1] and np.isclose(s[10], 5 / 60)
+    assert np.isclose(r, -(8 * 16.3 + 5) / 50)
     assert 3 in fake.phases                        # yellow inserted before the new green
+
+
+def test_switching_is_charged_for_the_yellow_seconds_it_burns():
+    """Regression guard for the Week 6 exploit: with reward charged per
+    decision, flipping every step hid 3 s of congestion per flip."""
+    def reward_of(policy):
+        fake = FakeTraci()
+        env = _env("intersection.yaml", fake)
+        env.reset()
+        total = 0.0
+        while fake.t < 40:
+            _, r, _, _ = env.step(policy(fake.t))
+            total += r
+        return total, fake.t
+
+    hold, t_hold = reward_of(lambda t: 0)
+    flip, t_flip = reward_of(lambda t: (t // 4) % 2)
+    # Same simulated time, same queues every second => same cost. Per-decision
+    # charging would have made `flip` look 4x cheaper.
+    assert t_hold == t_flip == 40
+    assert np.isclose(hold, flip)
 
 
 def test_scenario_route_file_is_passed_to_sumo():

@@ -19,13 +19,21 @@ state:
   wait_scale: 200.0
   phase_elapsed_scale: 60.0
 
-# Reward = -(queue + 0.05 * waiting time) - 2 per phase switch, / 10.
-# The switch penalty discourages flicker on top of the yellow-time cost.
+# Reward is charged per simulated second (see traffic_drl/env/features.py):
+# cost/s = queue + 0.1 * (vehicles waiting outside to enter the network);
+# a decision's reward = -(cost accrued over its seconds, yellow included
+# + switch_penalty) / reward_scale. The backlog term matters because the
+# short approach edges (~12 vehicles) saturate under heavy demand.
 reward:
   queue_weight: 1.0
-  wait_weight: 0.05
-  switch_penalty: 2.0
-  reward_scale: 10.0
+  wait_weight: 0.0
+  backlog_weight: 0.1
+  switch_penalty: 5.0
+  reward_scale: 50.0
+
+# The agent picks a phase every 5 simulated seconds (a minimum green), not
+# every second: per-second decisions let the agent flip constantly.
+decision_interval: 5
 
 # DQN settings read by traffic_drl.agent.DQNAgent.from_config (Week 5).
 # Learning rate 1e-3 is deliberate: 3e-3 was seen to diverge on the toy
@@ -44,18 +52,18 @@ dqn:
   buffer_size: 20000      # replay capacity (transitions)
   learn_start: 500        # transitions buffered before learning begins
   train_every: 1          # gradient step every N env steps
-  target_sync_steps: 200  # hard-copy online -> target network every N env steps
+  target_sync_steps: 200  # hard-copy online -> target network every N decisions
   loss: huber             # huber | mse
   seed: 0
 
 # `traffic-drl sweep` trains every combination below x every seed, scores
 # each with a greedy evaluation on unseen seeds, and ranks the settings by
-# mean_total_waiting (halted + backlogged vehicles). 8 settings x 2 seeds x 40 episodes at ~10 s per episode is
-# roughly 2 hours on SUMO; trim the grid or use --episodes/--seeds to shrink.
+# mean_total_waiting (halted + backlogged vehicles). 8 settings x 2 seeds x 80 episodes at ~2 s per episode is
+# roughly 1 hour on SUMO; trim the grid or use --episodes/--seeds to shrink.
 sweep:
-  episodes: 40
+  episodes: 80
   seeds: [0, 1]
   grid:
     learning_rate: [0.0005, 0.001]
-    target_sync_steps: [200, 1000]
-    epsilon_decay: [0.9, 0.95]
+    target_sync_steps: [100, 400]
+    epsilon_decay: [0.93, 0.96]

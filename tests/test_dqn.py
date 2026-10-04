@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from traffic_drl.agent import DQNAgent, ReplayBuffer, train_agent  # noqa: E402
 from traffic_drl.agent.nn import huber_loss  # noqa: E402
+from traffic_drl.baseline import FixedTimeAgent  # noqa: E402
 from traffic_drl.env import SimpleQueueEnv  # noqa: E402
 
 
@@ -131,19 +132,24 @@ def _mean_eval(env, policy, episodes=10):
 
 
 def test_dqn_converges_and_beats_naive_policies():
-    def make(seed):
-        return SimpleQueueEnv(seed=seed, state_scale=20, include_phase=True)
+    def make(seed, reward_scale=30):
+        # reward_scale matters: with raw costs of ~-30 per step the DQN never
+        # learns to switch and collapses to "stay" (Week 6 toy experiments).
+        return SimpleQueueEnv(seed=seed, state_scale=20, include_phase=True, reward_scale=reward_scale)
 
     agent = DQNAgent(4, hidden_sizes=(32, 32), learning_rate=1e-3, epsilon_decay=0.95,
                      learn_start=300, target_sync_steps=200, seed=0)
     rewards = train_agent(make(0), agent, 150, verbose=False)
     assert np.mean(rewards[-10:]) > np.mean(rewards[:10])
 
-    learned = _mean_eval(make(1000), lambda s: agent.act(s, greedy=True))
-    always_ns = _mean_eval(make(1000), lambda s: 0)
+    # (scored in raw cost units: reward_scale=1 on the eval env)
+    learned = _mean_eval(make(1000, 1), lambda s: agent.act(s, greedy=True))
+    always_ns = _mean_eval(make(1000, 1), lambda s: 0)
     rng = np.random.default_rng(0)
-    random_policy = _mean_eval(make(1000), lambda s: int(rng.integers(2)))
-    print(f"learned={learned:.0f} always_ns={always_ns:.0f} random={random_policy:.0f}")
+    random_policy = _mean_eval(make(1000, 1), lambda s: int(rng.integers(2)))
+    timer = FixedTimeAgent(green_steps=15)
+    fixed = _mean_eval(make(1000, 1), lambda s: timer.act())
+    print(f"learned={learned:.0f} always_ns={always_ns:.0f} random={random_policy:.0f} fixed15={fixed:.0f}")
     assert learned > always_ns
     assert learned > random_policy
 

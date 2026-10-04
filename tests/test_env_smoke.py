@@ -23,7 +23,7 @@ from traffic_drl.env import TraciEnv  # noqa: E402
 def run_smoke_test(config_path="configs/intersection.yaml", n_steps=200):
     env = TraciEnv(config_path)
     state = env.reset()
-    assert state.shape == (4,), f"expected a 4-element state (one per approach), got {state.shape}"
+    assert state.shape == (env.state_size,), f"expected {env.state_size} state elements, got {state.shape}"
 
     total_reward = 0.0
     action = 0

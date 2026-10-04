@@ -64,6 +64,9 @@ class TraciEnv:
         self.step_length = float(self.config.get("step_length", 1.0))
         self.episode_length = float(self.config.get("episode_length", 3600))
         self.yellow_duration = float(self.config.get("yellow_duration", 3))
+        # Seconds the chosen green is held per decision (SUMO still steps at
+        # step_length). >1 acts as a minimum green and shortens episodes.
+        self.decision_interval = float(self.config.get("decision_interval", self.step_length))
         self.gui = bool(self.config.get("gui", False))
         self.approaches = self.config["approaches"]
         self.state_cfg = features.state_config(self.config)
@@ -102,6 +105,7 @@ class TraciEnv:
         self._action = 0
         self._phase_elapsed = 0.0
         self._reset_metrics()
+        self._step_cost = 0.0
 
         # Start on the north-south green phase (action 0) by convention.
         traci.trafficlight.setPhase(self.tls_id, GREEN_PHASES[0])
@@ -115,6 +119,7 @@ class TraciEnv:
 
         requested_phase = GREEN_PHASES[action]
         switched = requested_phase != self._current_green_phase
+        self._step_cost = 0.0  # cost accrued per simulated second over this decision
 
         if self._current_green_phase is not None and requested_phase != self._current_green_phase:
             # Switching green -- clear the intersection with a yellow phase
@@ -124,14 +129,14 @@ class TraciEnv:
 
         traci.trafficlight.setPhase(self.tls_id, requested_phase)
         self._current_green_phase = requested_phase
-        self._advance(self.step_length)
+        self._advance(self.decision_interval)
 
         self._switches += int(switched)
-        self._green_seconds[action] += self.step_length
-        self._phase_elapsed = self.step_length if switched else self._phase_elapsed + self.step_length
+        self._green_seconds[action] += self.decision_interval
+        self._phase_elapsed = self.decision_interval if switched else self._phase_elapsed + self.decision_interval
         self._action = action
         state = self._get_state()
-        reward = self._get_reward(switched)
+        reward = features.compute_reward(self.reward_cfg, self._step_cost, switched)
         done = (
             self._elapsed >= self.episode_length
             or traci.simulation.getMinExpectedNumber() == 0
@@ -154,13 +159,21 @@ class TraciEnv:
             self._elapsed += self.step_length
             # Measured every simulated second -- including yellow time -- so
             # the metrics don't depend on how often the agent switches.
-            self._queue_seconds += self.step_length * sum(
+            queue_now = sum(
                 traci.edge.getLastStepHaltingNumber(a["incoming_edge"]) for a in self.approaches
             )
+            self._queue_seconds += self.step_length * queue_now
             # Approach edges are short (~12 vehicles), so under heavy demand SUMO
             # holds the overflow in an insertion backlog that the halting
             # count above cannot see; count it too.
-            self._backlog_seconds += self.step_length * len(traci.simulation.getPendingVehicles())
+            backlog_now = len(traci.simulation.getPendingVehicles())
+            self._backlog_seconds += self.step_length * backlog_now
+            wait_now = (
+                sum(traci.edge.getWaitingTime(a["incoming_edge"]) for a in self.approaches)
+                if self.reward_cfg["wait_weight"] else 0.0
+            )
+            self._step_cost += self.step_length * features.accrue_cost(
+                self.reward_cfg, queue_now, wait_now, backlog_now)
             self._arrived += traci.simulation.getArrivedNumber()
             self._departed += traci.simulation.getDepartedNumber()
 
@@ -194,7 +207,7 @@ class TraciEnv:
         queues = [traci.edge.getLastStepHaltingNumber(e) for e in edges]
         waits = (
             [traci.edge.getWaitingTime(e) for e in edges]
-            if "waiting_time" in self.state_cfg["features"] or self.reward_cfg["wait_weight"]
+            if "waiting_time" in self.state_cfg["features"]
             else [0.0] * len(edges)
         )
         return queues, waits
@@ -204,10 +217,6 @@ class TraciEnv:
         return features.build_state(
             self.state_cfg, queues, waits, self._action, self._phase_elapsed, self.n_actions
         )
-
-    def _get_reward(self, switched: bool) -> float:
-        queues, waits = self._read_edges()
-        return features.compute_reward(self.reward_cfg, queues, waits, switched)
 
     def close(self):
         if self._connected:

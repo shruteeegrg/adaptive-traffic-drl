@@ -12,6 +12,7 @@ import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from traffic_drl.agent import QTableAgent, run_episode, train_qtable  # noqa: E402
+from traffic_drl.baseline import FixedTimeAgent  # noqa: E402
 from traffic_drl.env import SimpleQueueEnv  # noqa: E402
 
 
@@ -81,21 +82,24 @@ def _mean_eval(env, policy, episodes=10):
 
 
 def test_qtable_converges_and_beats_naive_policies():
-    agent = QTableAgent(epsilon_decay=0.9, seed=0)
-    rewards = train_qtable(SimpleQueueEnv(seed=0), agent, episodes=80, verbose=False)
+    def make(seed):
+        return SimpleQueueEnv(seed=seed, include_phase=True)  # phase in the state: needed to learn
 
-    # Learning curve: late episodes clearly better than early ones.
+    agent = QTableAgent(epsilon_decay=0.92, seed=0)
+    rewards = train_qtable(make(0), agent, episodes=150, verbose=False)
     assert np.mean(rewards[-10:]) > np.mean(rewards[:10])
 
     # Evaluate on unseen episodes (different seed), greedy, no updates.
-    eval_env = SimpleQueueEnv(seed=1000)
-    learned = _mean_eval(eval_env, lambda s: agent.act(s, greedy=True))
-    always_ns = _mean_eval(SimpleQueueEnv(seed=1000), lambda s: 0)
+    learned = _mean_eval(make(1000), lambda s: agent.act(s, greedy=True))
+    always_ns = _mean_eval(make(1000), lambda s: 0)
     rng = np.random.default_rng(0)
-    random_policy = _mean_eval(SimpleQueueEnv(seed=1000), lambda s: int(rng.integers(2)))
-    print(f"learned={learned:.0f} always_ns={always_ns:.0f} random={random_policy:.0f}")
+    random_policy = _mean_eval(make(1000), lambda s: int(rng.integers(2)))
+    timer = FixedTimeAgent(green_steps=15)
+    fixed = _mean_eval(make(1000), lambda s: timer.act())
+    print(f"learned={learned:.0f} always_ns={always_ns:.0f} random={random_policy:.0f} fixed15={fixed:.0f}")
     assert learned > always_ns
     assert learned > random_policy
+    assert learned > fixed
 
 
 def test_run_episode_eval_does_not_modify_table():
