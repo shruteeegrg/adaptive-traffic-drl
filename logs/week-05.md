@@ -40,6 +40,22 @@ Observations worth carrying into Week 6:
 - Learning rate 3e-3 was unstable (one of three seeds collapsed to about -6300);
   1e-3 was reliable across three seeds. `dqn.yaml` uses 1e-3.
 
+## Follow-up: first real-SUMO run (Windows) and what it changed
+
+- 36 tests, smoke test, both `env-check`s and 3-episode Q-table/DQN runs all
+  passed on real SUMO 1.27.1. This closes the "no real-SUMO run" blocker.
+- Finding: the base demand (300 veh/h/approach) is too light to learn from
+  (Q-table visited only 7 states, queues of 0-2). Rush hour (900) is the
+  meaningful scenario, but it could not be selected.
+- [x] `--scenario` for `train` and `env-check` (`TraciEnv(scenario=...)`,
+  `load_scenario` in `config.py`): the scenario's route file replaces the
+  default demand via SUMO's `--route-files`.
+- [x] Per-simulated-second metrics (`TraciEnv.metrics()`): mean queue, average
+  wait per vehicle, throughput/hour; counted every second including yellow,
+  logged per episode in the training CSV, printed by `env-check`. The training
+  reward is counted per agent decision, so the fixed-time comparison must use
+  these metrics, not the reward.
+
 ## Planned for next week (Week 6)
 
 - [ ] Reward-curve tracking across seeds, hyperparameter sweeps (lr, target
