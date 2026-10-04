@@ -32,12 +32,14 @@ def train_agent(env, agent, episodes: int, max_steps: int = None, log_path: str 
     """Train any agent with act/update/decay_epsilon (QTableAgent or
     DQNAgent) for `episodes` episodes; returns the per-episode reward list
     and, if `log_path` is given, writes it as CSV (episode, reward,
-    epsilon, loss) so the reward curve can be re-plotted from saved logs.
+    epsilon, loss, plus per-second mean_queue / avg_wait_per_vehicle /
+    throughput_per_hour when the env measures them) so the reward curve can be re-plotted from saved logs.
     `loss` is the mean DQN loss that episode (empty for the Q-table)."""
-    rewards, epsilons, losses = [], [], []
+    rewards, epsilons, losses, metrics = [], [], [], []
     for ep in range(episodes):
         rewards.append(run_episode(env, agent, train=True, max_steps=max_steps))
         epsilons.append(agent.epsilon)
+        metrics.append(env.metrics() if hasattr(env, "metrics") else {})
         losses.append(agent.pop_mean_loss() if hasattr(agent, "pop_mean_loss") else None)
         agent.decay_epsilon()
         if verbose:
@@ -49,9 +51,12 @@ def train_agent(env, agent, episodes: int, max_steps: int = None, log_path: str 
         os.makedirs(os.path.dirname(log_path) or ".", exist_ok=True)
         with open(log_path, "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow(["episode", "reward", "epsilon", "loss"])
-            for i, (r, e, l) in enumerate(zip(rewards, epsilons, losses), start=1):
-                writer.writerow([i, r, e, "" if l is None else l])
+            writer.writerow(["episode", "reward", "epsilon", "loss",
+                             "mean_queue", "avg_wait_per_vehicle", "throughput_per_hour"])
+            for i, (r, e, l, m) in enumerate(zip(rewards, epsilons, losses, metrics), start=1):
+                writer.writerow([i, r, e, "" if l is None else l,
+                                 m.get("mean_queue", ""), m.get("avg_wait_per_vehicle", ""),
+                                 m.get("throughput_per_hour", "")])
     return rewards
 
 

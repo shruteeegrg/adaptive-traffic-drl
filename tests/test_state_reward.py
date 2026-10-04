@@ -70,17 +70,20 @@ class FakeTraci:
     def __init__(self):
         self.t = 0
         self.phases = []
+        self.cmd = None
         self.trafficlight = self
         self.edge = self
         self.simulation = self
 
-    def start(self, cmd): pass
+    def start(self, cmd): self.cmd = cmd
     def close(self): pass
     def simulationStep(self): self.t += 1
     def setPhase(self, tls, phase): self.phases.append(phase)
     def getLastStepHaltingNumber(self, e): return 4
     def getWaitingTime(self, e): return 20.0
     def getMinExpectedNumber(self): return 1
+    def getArrivedNumber(self): return 1
+    def getDepartedNumber(self): return 2
 
 
 def _env(config_name, monkeypatch_fake):
@@ -111,6 +114,57 @@ def test_traci_env_full_state_tracks_phase_and_switch_penalty():
     assert s[8:10].tolist() == [0, 1] and np.isclose(s[10], 1 / 60)
     assert np.isclose(r, -(16 + 4 + 2) / 10)
     assert 3 in fake.phases                        # yellow inserted before the new green
+
+
+def test_scenario_route_file_is_passed_to_sumo():
+    fake = FakeTraci()
+    traci_env.traci = fake
+    scen = os.path.join(ROOT, "configs", "scenarios", "rush_hour.yaml")
+    env = traci_env.TraciEnv(os.path.join(ROOT, "configs", "intersection.yaml"), scenario=scen)
+    env.reset()
+    i = fake.cmd.index("--route-files")
+    assert fake.cmd[i + 1].endswith("rush_hour.rou.xml") and os.path.exists(fake.cmd[i + 1])
+
+
+def test_no_scenario_leaves_sumo_command_unchanged():
+    fake = FakeTraci()
+    _env("intersection.yaml", fake).reset()
+    assert "--route-files" not in fake.cmd
+
+
+def test_bad_scenarios_rejected():
+    import tempfile
+    from traffic_drl.config import load_scenario
+    with tempfile.TemporaryDirectory() as d:
+        bad = os.path.join(d, "s.yaml")
+        open(bad, "w").write("name: x\nroute_file: missing.rou.xml\n")
+        try:
+            load_scenario(bad)
+        except FileNotFoundError:
+            pass
+        else:
+            raise AssertionError("expected FileNotFoundError")
+        open(bad, "w").write("name: x\n")
+        try:
+            load_scenario(bad)
+        except ValueError:
+            return
+    raise AssertionError("expected ValueError")
+
+
+def test_metrics_are_counted_per_simulated_second_including_yellow():
+    fake = FakeTraci()
+    env = _env("intersection.yaml", fake)
+    env.reset()
+    env.step(0)            # 1 simulated second, no switch
+    m = env.metrics()
+    assert m["mean_queue"] == 16.0 and m["arrived"] == 1
+    assert np.isclose(m["avg_wait_per_vehicle"], 16.0 / 2)   # 16 vehicle-seconds / 2 departed
+    env.step(1)            # switch: 3 s yellow + 1 s green = 4 more simulated seconds
+    m = env.metrics()
+    assert fake.t == 5 and m["arrived"] == 5
+    assert np.isclose(m["throughput_per_hour"], 5 * 3600 / 5)
+    assert np.isclose(m["mean_queue"], 16.0)       # still averaged over all 5 seconds
 
 
 if __name__ == "__main__":

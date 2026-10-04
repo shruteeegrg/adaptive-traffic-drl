@@ -38,3 +38,20 @@ def load_config(path: str) -> dict:
 
     config["_config_dir"] = str(base_dir)
     return _deep_merge(parent_config, config)
+
+
+def load_scenario(path: str) -> dict:
+    """Load a scenario YAML (configs/scenarios/*.yaml) and resolve its
+    `route_file` relative to the scenario file. A scenario changes only
+    the demand; the network, signal plan and agent settings stay with the
+    intersection config."""
+    scenario_path = Path(path).resolve()
+    with open(scenario_path, "r") as f:
+        scenario = yaml.safe_load(f)
+    if not scenario.get("route_file"):
+        raise ValueError(f"scenario {path} has no route_file")
+    route = (scenario_path.parent / scenario["route_file"]).resolve()
+    if not route.exists():
+        raise FileNotFoundError(f"scenario route file not found: {route}")
+    scenario["route_file"] = str(route)
+    return scenario

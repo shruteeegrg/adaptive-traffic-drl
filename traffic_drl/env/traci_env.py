@@ -30,7 +30,7 @@ import sys
 
 import numpy as np
 
-from traffic_drl.config import load_config
+from traffic_drl.config import load_config, load_scenario
 from traffic_drl.env import features
 
 # SUMO ships its Python helper modules (traci, sumolib) under
@@ -48,8 +48,12 @@ YELLOW_FOR = {0: 3, 2: 1}    # green phase index -> the yellow phase that clears
 
 
 class TraciEnv:
-    def __init__(self, config_path: str):
+    def __init__(self, config_path: str, scenario: str = None):
+        """`scenario` is an optional path to a scenario YAML (e.g.
+        configs/scenarios/rush_hour.yaml); its route file replaces the
+        intersection's default demand for every episode."""
         self.config = load_config(config_path)
+        self.scenario = load_scenario(scenario) if scenario else None
         self.tls_id = self.config["traffic_light_id"]
         self.step_length = float(self.config.get("step_length", 1.0))
         self.episode_length = float(self.config.get("episode_length", 3600))
@@ -66,6 +70,7 @@ class TraciEnv:
         self._connected = False
         self._current_green_phase = None  # tlLogic phase index currently active
         self._elapsed = 0.0
+        self._reset_metrics()
 
     def _sumo_binary(self) -> str:
         return "sumo-gui" if self.gui else "sumo"
@@ -81,11 +86,14 @@ class TraciEnv:
             "--no-warnings", "true",
             "--no-step-log", "true",
         ]
+        if self.scenario:
+            cmd += ["--route-files", self.scenario["route_file"]]  # overrides the sumocfg's demand
         traci.start(cmd)
         self._connected = True
         self._elapsed = 0.0
         self._action = 0
         self._phase_elapsed = 0.0
+        self._reset_metrics()
 
         # Start on the north-south green phase (action 0) by convention.
         traci.trafficlight.setPhase(self.tls_id, GREEN_PHASES[0])
@@ -118,14 +126,41 @@ class TraciEnv:
             self._elapsed >= self.episode_length
             or traci.simulation.getMinExpectedNumber() == 0
         )
-        info = {"elapsed": self._elapsed}
+        info = {"elapsed": self._elapsed, **self.metrics()}
         return state, reward, done, info
+
+    def _reset_metrics(self):
+        self._queue_seconds = 0.0   # sum over simulated seconds of vehicles halted at the junction
+        self._arrived = 0           # vehicles that completed their trip
+        self._departed = 0          # vehicles that entered the network
 
     def _advance(self, seconds: float):
         n_steps = max(1, round(seconds / self.step_length))
         for _ in range(n_steps):
             traci.simulationStep()
             self._elapsed += self.step_length
+            # Measured every simulated second -- including yellow time -- so
+            # the metrics don't depend on how often the agent switches.
+            self._queue_seconds += self.step_length * sum(
+                traci.edge.getLastStepHaltingNumber(a["incoming_edge"]) for a in self.approaches
+            )
+            self._arrived += traci.simulation.getArrivedNumber()
+            self._departed += traci.simulation.getDepartedNumber()
+
+    def metrics(self) -> dict:
+        """Per-second evaluation metrics for the episode so far. These, not
+        the training reward, are what the fixed-time comparison uses:
+          mean_queue            average halted vehicles at the junction
+          avg_wait_per_vehicle  halted vehicle-seconds / vehicles entered (s)
+          throughput_per_hour   completed trips, scaled to one hour
+        """
+        elapsed = max(self._elapsed, 1e-9)
+        return {
+            "mean_queue": self._queue_seconds / elapsed,
+            "avg_wait_per_vehicle": self._queue_seconds / max(self._departed, 1),
+            "throughput_per_hour": self._arrived * 3600.0 / elapsed,
+            "arrived": self._arrived,
+        }
 
     def _read_edges(self):
         edges = [a["incoming_edge"] for a in self.approaches]

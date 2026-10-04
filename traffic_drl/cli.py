@@ -34,6 +34,7 @@ def build_parser() -> argparse.ArgumentParser:
     train.add_argument("--config", required=True, help="Path to intersection config YAML")
     train.add_argument("--env", choices=["sumo", "toy"], default="sumo",
                        help="sumo = TraciEnv (needs SUMO); toy = fast pure-Python queue model")
+    train.add_argument("--scenario", help="Scenario YAML (e.g. configs/scenarios/rush_hour.yaml); SUMO env only")
     train.add_argument("--episodes", type=int, help="Override episodes from the config")
     train.add_argument("--out-dir", default="checkpoints", help="Where the checkpoint, log and plot go")
 
@@ -52,6 +53,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     env_check.add_argument("--config", default="configs/intersection.yaml")
     env_check.add_argument("--steps", type=int, default=200)
+    env_check.add_argument("--scenario", help="Scenario YAML to run instead of the default demand")
 
     return parser
 
@@ -71,6 +73,9 @@ def _train(args) -> int:
     if args.env == "toy":
         from traffic_drl.env import SimpleQueueEnv
 
+        if args.scenario:
+            print("note: --scenario is ignored with --env toy")
+
         # The toy model's state is sized for the agent, not for the YAML.
         env = SimpleQueueEnv(seed=params.get("seed", 0), state_scale=20.0,
                              include_phase=args.agent == "dqn")
@@ -78,7 +83,7 @@ def _train(args) -> int:
     else:
         from traffic_drl.env import TraciEnv
 
-        env = TraciEnv(args.config)
+        env = TraciEnv(args.config, scenario=args.scenario)
         state_size = env.state_size
 
     if args.agent == "qtable":
@@ -109,7 +114,7 @@ def main(argv=None) -> int:
     if args.command == "env-check":
         from traffic_drl.env import TraciEnv
 
-        env = TraciEnv(args.config)
+        env = TraciEnv(args.config, scenario=args.scenario)
         state = env.reset()
         print(f"reset() OK — state shape {state.shape}, initial state {state}")
         total_reward = 0.0
@@ -121,7 +126,11 @@ def main(argv=None) -> int:
             total_reward += reward
             if done:
                 break
+        metrics = env.metrics()
         env.close()
+        print(f"metrics: mean_queue={metrics['mean_queue']:.2f} "
+              f"avg_wait_per_vehicle={metrics['avg_wait_per_vehicle']:.1f}s "
+              f"throughput_per_hour={metrics['throughput_per_hour']:.0f}")
         print(f"step() OK — ran {i + 1} steps, total_reward={total_reward:.1f}, final_state={state}")
     elif args.command == "train":
         return _train(args)
