@@ -50,6 +50,35 @@
   agents. Pulled forward from Week 8 because no DQN number can be interpreted
   without it.
 
+## Follow-up 2: the sweep exposed a reward exploit (and the fix)
+
+- Windows sweep (8 settings x 2 seeds x 40 episodes, ~30 min): all 16 runs ended
+  with ~450 switches per 1800 s episode (every decision flipped phase: 450 x 4 s
+  = 1800 s), ns_green_fraction ~0.5, throughput ~1780/h vs the fixed-time
+  baseline's 3037/h, mean_total_waiting ~421 vs 137. Hyperparameters made no
+  real difference -- every setting found the same degenerate policy, so that
+  ranking is not meaningful.
+- Cause: reward was charged once per agent decision. A phase switch burns 3 s of
+  yellow inside one decision, so flipping made 3 of every 4 seconds of congestion
+  uncharged. (The same flaw had been flagged as a risk in the Week 6 plan.)
+- Fix: (1) reward is accrued every simulated second including yellow
+  (`features.accrue_cost`); (2) the cost includes the insertion backlog
+  (`backlog_weight`); (3) `decision_interval: 5` s (a minimum green) in `dqn.yaml`;
+  (4) per-decision switch penalty kept at a small 5 cost units.
+  Regression test: a flip-every-4-s policy and a hold policy over the same
+  simulated time now cost the same.
+- The toy model had the same flaw, so its earlier "convergence" proved less than
+  claimed. Re-tuned the toy (balanced demand 0.30/0.25, 400 s episodes; yellow
+  charged) and re-checked: with honest accounting, never-switch scores -10275,
+  random -13877, a 15 s timer -2079; Q-table -1574 and DQN -1802 beat all three.
+- Two things the toy showed that matter for the real runs: the DQN collapses to
+  "never switch" unless rewards are scaled small (`reward_scale`, 50 in
+  `dqn.yaml`), and the Q-table fails (-9720) without the current phase in its
+  state (-1588 with it), so `intersection.yaml` now gives it `[queue, phase]`.
+- `traffic-drl baseline` now rounds green seconds to whole decisions
+  (`decision_interval`), printing the effective green. Earlier `results_*`
+  folders were produced with the old reward and are obsolete for comparison.
+
 ## Planned for next week (Week 7)
 
 - [ ] Run the sweep on real SUMO (rush hour), pick settings, train and ship the
