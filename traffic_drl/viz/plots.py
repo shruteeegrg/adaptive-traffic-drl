@@ -18,6 +18,7 @@ carried by colour alone.
 
 import csv
 import math
+import os
 
 import matplotlib
 
@@ -121,6 +122,7 @@ def plot_training(log_path: str, out_path: str, evals_path: str = None, window: 
     if title:
         fig.suptitle(title, x=0.01, ha="left", fontsize=11, color=INK)
     fig.tight_layout()
+    os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
     fig.savefig(out_path, dpi=140, facecolor=SURFACE)
     plt.close(fig)
     return out_path
@@ -199,6 +201,7 @@ def plot_comparison(results: dict, out_path: str, metrics=COMPARE_DEFAULT, title
     if title:
         fig.suptitle(title, x=0.01, ha="left", fontsize=11, color=INK)
     fig.tight_layout(rect=(0, 0.06, 1, 0.95 if title else 1))
+    os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
     fig.savefig(out_path, dpi=140, facecolor=SURFACE)
     plt.close(fig)
     return out_path

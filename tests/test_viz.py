@@ -55,6 +55,13 @@ def test_plot_training_with_and_without_evals():
         assert _is_png(viz.plot_training(log, os.path.join(d, "b.png"), evals_path=evals, title="t"))
 
 
+def test_output_folder_is_created():
+    with tempfile.TemporaryDirectory() as d:
+        log = os.path.join(d, "log.csv")
+        _full_log(log)
+        assert _is_png(viz.plot_training(log, os.path.join(d, "new", "nested", "a.png")))
+
+
 def test_reward_only_log_still_plots():
     with tempfile.TemporaryDirectory() as d:     # Q-table logs have no metric columns
         log = os.path.join(d, "q.csv")
