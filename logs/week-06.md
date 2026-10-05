@@ -145,6 +145,28 @@
   the docs and `.gitignore`.
 - Commit messages no longer carry week numbers (history reworded; file contents unchanged).
 
+## Follow-up 7: tidal-trained final checkpoint, confirmed on fresh seeds (10 episodes, seeds 30000+)
+
+| scenario | fixed-time: total waiting / throughput | DQN (tidal-trained) | verdict |
+|---|---|---|---|
+| tidal | 115.0 / 2445 per h | 9.9 / 2749 per h | DQN better in 10/10 episodes (~91% less waiting) |
+| rush hour | 139.7 / 3023 | 198.5 / 2747 (99 switches) | fixed-time better (DQN +42% waiting) |
+| low traffic | 1.5 / 475 | 24.8 / 389 (avg wait 131 s vs 11 s, 5 switches) | fixed-time better; DQN often parks on one phase |
+
+- Checkpoint rule fixed in advance: most reliable setting (lr 5e-4, target sync 100,
+  decay 0.93; 4/4 seeds good), top-ranked seed (1). Saved as `checkpoints/dqn_final.npz`.
+- Reading: the DQN is a specialist. Strong on uneven, shifting demand (what it trained on);
+  worse than the fixed timer on balanced rush hour and light traffic. Rush-hour-trained
+  checkpoints had tied the timer on rush hour, so the training scenario shapes behaviour.
+- Hypothesis for the light-traffic failure (untested): the 5-unit switch penalty outweighs
+  the cost of one waiting car, and light traffic was never seen in training.
+- Built mixed-scenario training: `scenarios:` list in a config (or `--scenario a,b,c`),
+  training episodes cycle through them; evaluation scores every scenario and aggregates with
+  exp(mean(log1p(waiting))) - 1 so relative changes count equally in light and heavy
+  traffic; per-scenario results are kept. The sweep grid accepts `reward.<name>` keys
+  (restored after each run) so the switch penalty can be tested. `configs/dqn_mixed.yaml`:
+  low / rush / tidal, 2 epsilon decays x switch penalty {0, 5} x 3 seeds, 120 episodes.
+
 ## Planned for next week (Week 7)
 
 - [ ] Run the sweep on real SUMO (rush hour), pick settings, train and ship the
