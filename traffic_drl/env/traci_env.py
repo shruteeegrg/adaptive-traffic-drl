@@ -48,12 +48,22 @@ YELLOW_FOR = {0: 3, 2: 1}    # green phase index -> the yellow phase that clears
 
 
 class TraciEnv:
-    def __init__(self, config_path: str, scenario: str = None, seed: int = 0):
+    def __init__(self, config_path: str, scenario=None, seed: int = 0):
         """`scenario` is an optional path to a scenario YAML (e.g.
-        configs/scenarios/rush_hour.yaml); its route file replaces the
-        intersection's default demand for every episode."""
+        configs/scenarios/rush_hour.yaml), a comma-separated string of paths,
+        or a list of them; its route file replaces the intersection's default
+        demand. With several, training episodes cycle through them in order
+        (mixed-scenario training); with none given the config's own
+        `scenarios:` list is used, if it has one."""
         self.config = load_config(config_path)
-        self.scenario = load_scenario(scenario) if scenario else None
+        if isinstance(scenario, str):
+            scenario = [p.strip() for p in scenario.split(",") if p.strip()]
+        paths = list(scenario) if scenario else list(self.config.get("scenarios") or [])
+        self.scenarios = [load_scenario(p) for p in paths]
+        self.scenario_names = [sc.get("name", os.path.basename(sc["route_file"])) for sc in self.scenarios]
+        self.force_scenario = None   # evaluate() pins one scenario here; None = cycle
+        self._train_episodes = 0     # training resets so far (drives the cycle)
+        self.current_scenario = None
         # Each reset() launches SUMO with seed = seed_base + (number of resets
         # so far), so episodes see different driver behaviour instead of
         # replaying one identical run. evaluate() moves seed_base far away
@@ -97,8 +107,14 @@ class TraciEnv:
             "--seed", str(self.seed_base + self._n_resets),
         ]
         self._n_resets += 1
-        if self.scenario:
-            cmd += ["--route-files", self.scenario["route_file"]]  # overrides the sumocfg's demand
+        if self.scenarios:
+            if self.force_scenario is not None:
+                idx = self.force_scenario
+            else:
+                idx = self._train_episodes % len(self.scenarios)
+                self._train_episodes += 1
+            self.current_scenario = self.scenario_names[idx]
+            cmd += ["--route-files", self.scenarios[idx]["route_file"]]  # overrides the sumocfg's demand
         traci.start(cmd)
         self._connected = True
         self._elapsed = 0.0

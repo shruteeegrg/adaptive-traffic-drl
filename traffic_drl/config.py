@@ -36,6 +36,10 @@ def load_config(path: str) -> dict:
         if key in config and config[key]:
             config[key] = str((base_dir / config[key]).resolve())
 
+    # `scenarios:` lists scenario YAMLs for mixed-scenario training.
+    if config.get("scenarios"):
+        config["scenarios"] = [str((base_dir / sc).resolve()) for sc in config["scenarios"]]
+
     config["_config_dir"] = str(base_dir)
     return _deep_merge(parent_config, config)
 

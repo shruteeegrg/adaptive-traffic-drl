@@ -1,0 +1,29 @@
+# Mixed-scenario training: every training episode uses the next scenario in
+# the list (low traffic, rush hour, tidal, repeat), so the agent cannot
+# specialise on one demand pattern. The tidal-only model beat the fixed timer
+# on tidal but lost on balanced rush hour and light traffic.
+#
+# Evaluation scores each scenario and aggregates them (exp(mean(log1p(waiting)))-1),
+# so a relative change counts the same in light and heavy traffic.
+#
+# The sweep also tests whether the phase-switch penalty (5 cost units in dqn.yaml)
+# caused the light-traffic failure: with a heavy penalty, one waiting car is not
+# worth a switch. Run:
+#   traffic-drl sweep --config configs/dqn_mixed.yaml --out-dir results_sweep_mixed
+extends: dqn.yaml
+name: intersection_dqn_mixed
+
+scenarios:
+  - scenarios/low_traffic.yaml
+  - scenarios/rush_hour.yaml
+  - scenarios/tidal.yaml
+
+sweep:
+  episodes: 120          # 3 scenarios to learn, so more episodes than a single-scenario run
+  eval_episodes: 1       # per scenario, per periodic evaluation
+  seeds: [0, 1, 2]
+  grid:
+    learning_rate: [0.0005]
+    target_sync_steps: [100]
+    epsilon_decay: [0.93, 0.96]
+    reward.switch_penalty: [0, 5]

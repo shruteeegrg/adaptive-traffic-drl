@@ -37,7 +37,8 @@ def build_parser() -> argparse.ArgumentParser:
     train.add_argument("--config", required=True, help="Path to intersection config YAML")
     train.add_argument("--env", choices=["sumo", "toy"], default="sumo",
                        help="sumo = TraciEnv (needs SUMO); toy = fast pure-Python queue model")
-    train.add_argument("--scenario", help="Scenario YAML (e.g. configs/scenarios/rush_hour.yaml); SUMO env only")
+    train.add_argument("--scenario", help="Scenario YAML, or several comma-separated to train on a mix "
+                                          "(episodes cycle through them); SUMO env only")
     train.add_argument("--episodes", type=int, help="Override episodes from the config")
     train.add_argument("--out-dir", default="checkpoints", help="Where the checkpoint, log and plot go")
     train.add_argument("--eval-every", type=int, help="Greedy evaluation every N episodes (keeps a best checkpoint); overrides config")
@@ -67,7 +68,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     sweep = sub.add_parser("sweep", help="Hyperparameter sweep for the DQN agent across seeds (Week 6)")
     sweep.add_argument("--config", default="configs/dqn.yaml")
-    sweep.add_argument("--scenario", help="Scenario YAML to train and evaluate on; SUMO env only")
+    sweep.add_argument("--scenario", help="Scenario YAML(s) to train and evaluate on (comma-separate for a mix); SUMO env only")
     sweep.add_argument("--env", choices=["sumo", "toy"], default="sumo")
     sweep.add_argument("--episodes", type=int, help="Override sweep.episodes from the config")
     sweep.add_argument("--seeds", help="Comma-separated seeds, e.g. 0,1,2 (overrides sweep.seeds)")
@@ -307,7 +308,8 @@ def _sweep(args) -> int:
     try:
         summary = run_sweep(env, config, sw["grid"], seeds, episodes, args.out_dir,
                             max_steps=config.get("dqn", {}).get("max_steps"),
-                            eval_every=config.get("dqn", {}).get("eval_every"))
+                            eval_every=config.get("dqn", {}).get("eval_every"),
+                            eval_episodes=sw.get("eval_episodes", 2))
     finally:
         env.close()
 

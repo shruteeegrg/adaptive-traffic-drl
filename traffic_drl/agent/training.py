@@ -6,6 +6,7 @@ CLI stays a thin wrapper around this module.
 """
 
 import csv
+import math
 import os
 
 
@@ -31,11 +32,46 @@ def run_episode(env, agent, train: bool = True, max_steps: int = None) -> float:
 EVAL_SEED_BASE = 10_000  # SUMO seeds for evaluation, far from the training seeds
 
 
+def _aggregate(per_scenario: dict) -> dict:
+    """Combine per-scenario results into one dict. Means for every metric,
+    except mean_total_waiting, which uses exp(mean(log1p(.))) - 1 so that a
+    relative change counts the same in light and heavy traffic (1.5 -> 25
+    matters as much as 140 -> 200). Per-scenario values are kept under
+    "<scenario>/<metric>"."""
+    names = list(per_scenario)
+    out = {}
+    for key in per_scenario[names[0]]:
+        vals = [per_scenario[n][key] for n in names]
+        out[key] = (math.expm1(sum(math.log1p(v) for v in vals) / len(vals))
+                    if key == "mean_total_waiting" else sum(vals) / len(vals))
+    for n in names:
+        for key in ("mean_total_waiting", "throughput_per_hour", "switches"):
+            if key in per_scenario[n]:
+                out[f"{n}/{key}"] = per_scenario[n][key]
+    return out
+
+
 def evaluate(env, agent, episodes: int = 2, max_steps: int = None, seed_base: int = EVAL_SEED_BASE) -> dict:
     """Greedy (no exploration, no learning) evaluation, averaged over
     `episodes`. Returns {"reward": ...} plus mean_queue /
     avg_wait_per_vehicle / throughput_per_hour when the env measures them.
-    On envs with a `seed_base` (TraciEnv) it runs on unseen SUMO seeds."""
+    On envs with a `seed_base` (TraciEnv) it runs on unseen SUMO seeds.
+    On a mixed-scenario env it evaluates each scenario (`episodes` each) and
+    aggregates (see _aggregate)."""
+    names = getattr(env, "scenario_names", None) or []
+    if len(names) <= 1:
+        return _evaluate_one(env, agent, episodes, max_steps, seed_base)
+    per_scenario = {}
+    try:
+        for i, name in enumerate(names):
+            env.force_scenario = i
+            per_scenario[name] = _evaluate_one(env, agent, episodes, max_steps, seed_base)
+    finally:
+        env.force_scenario = None
+    return _aggregate(per_scenario)
+
+
+def _evaluate_one(env, agent, episodes: int, max_steps, seed_base) -> dict:
     saved = getattr(env, "seed_base", None)
     if saved is not None:
         env.seed_base = seed_base
@@ -87,7 +123,11 @@ def train_agent(env, agent, episodes: int, max_steps: int = None, log_path: str 
                     os.makedirs(os.path.dirname(best_path) or ".", exist_ok=True)
                     agent.save(best_path)
             if verbose:
-                print(f"  eval @ episode {ep + 1}: " + "  ".join(f"{k}={v:.2f}" for k, v in result.items())
+                shown = {k: v for k, v in result.items() if "/" not in k}
+                per = "  ".join(f"[{k.split('/')[0]}] wait={v:.1f}" for k, v in result.items()
+                                if k.endswith("/mean_total_waiting"))
+                print(f"  eval @ episode {ep + 1}: " + "  ".join(f"{k}={v:.2f}" for k, v in shown.items())
+                      + (f"  | {per}" if per else "")
                       + (f"  (best so far: episode {best_episode})" if best_episode else ""))
         if verbose:
             extra = f"states={len(agent.q)}" if hasattr(agent, "q") else f"loss={losses[-1]}"

@@ -27,6 +27,9 @@ METRIC_KEYS = ("reward", "mean_total_waiting", "mean_queue", "mean_backlog",
                "avg_wait_per_vehicle", "throughput_per_hour", "switches", "ns_green_fraction")
 
 
+REWARD_PREFIX = "reward."   # grid keys like "reward.switch_penalty" tune the env's reward, not the agent
+
+
 def expand_grid(grid: dict) -> list:
     """{"a": [1, 2], "b": [3]} -> [{"a": 1, "b": 3}, {"a": 2, "b": 3}]"""
     keys = list(grid)
@@ -38,7 +41,7 @@ def _setting_id(setting: dict) -> str:
 
 
 def run_sweep(env, config: dict, grid: dict, seeds, episodes: int, out_dir: str,
-              max_steps: int = None, eval_every: int = None, final_eval_episodes: int = 3,
+              max_steps: int = None, eval_every: int = None, eval_episodes: int = 2, final_eval_episodes: int = 3,
               verbose: bool = True) -> list:
     """Run the sweep on an already-built env (so SUMO's single TraCI
     connection is shared and reset between runs). Returns the ranked
@@ -53,22 +56,35 @@ def run_sweep(env, config: dict, grid: dict, seeds, episodes: int, out_dir: str,
         for seed in seeds:
             run_id = f"{_setting_id(setting)}_seed-{seed}"
             cfg = copy.deepcopy(config)
-            cfg.setdefault("dqn", {}).update(setting)
+            agent_params = {k: v for k, v in setting.items() if not k.startswith(REWARD_PREFIX)}
+            reward_params = {k[len(REWARD_PREFIX):]: v for k, v in setting.items() if k.startswith(REWARD_PREFIX)}
+            cfg.setdefault("dqn", {}).update(agent_params)
             cfg["dqn"]["seed"] = seed
+            original_reward = {k: env.reward_cfg[k] for k in reward_params} if reward_params else {}
+            if reward_params:
+                env.reward_cfg.update(reward_params)
             agent = DQNAgent.from_config(cfg, state_dim=state_dim)
             if verbose:
                 print(f"[{si}/{len(settings)}] {run_id}")
             history = {}
-            train_agent(env, agent, episodes, max_steps=max_steps, verbose=False,
-                        log_path=os.path.join(runs_dir, f"{run_id}.csv"),
-                        eval_every=eval_every, best_path=os.path.join(runs_dir, f"{run_id}_best.npz"),
-                        history=history)
-            _write_evals(history.get("evals", []), os.path.join(runs_dir, f"{run_id}_evals.csv"))
-            final = evaluate(env, agent, final_eval_episodes, max_steps=max_steps)
+            try:
+                train_agent(env, agent, episodes, max_steps=max_steps, verbose=False,
+                            log_path=os.path.join(runs_dir, f"{run_id}.csv"),
+                            eval_every=eval_every, eval_episodes=eval_episodes,
+                            best_path=os.path.join(runs_dir, f"{run_id}_best.npz"), history=history)
+                _write_evals(history.get("evals", []), os.path.join(runs_dir, f"{run_id}_evals.csv"))
+                final = evaluate(env, agent, final_eval_episodes, max_steps=max_steps)
+            finally:
+                if reward_params:
+                    env.reward_cfg.update(original_reward)   # never leak one setting's reward into the next
             row = {**setting, "seed": seed, **final, "best_episode": history.get("best_episode", "")}
             run_rows.append(row)
             if verbose:
                 print("    final eval: " + "  ".join(f"{k}={final[k]:.2f}" for k in METRIC_KEYS if k in final))
+                per = "  ".join(f"[{k.split('/')[0]}] wait={v:.1f}" for k, v in final.items()
+                                if k.endswith("/mean_total_waiting"))
+                if per:
+                    print(f"    per scenario: {per}")
 
     return _write_outputs(run_rows, list(grid), out_dir)
 
@@ -86,6 +102,7 @@ def _write_evals(evals: list, path: str) -> None:
 
 def _write_outputs(run_rows: list, setting_keys: list, out_dir: str) -> list:
     metrics = [k for k in METRIC_KEYS if k in run_rows[0]]
+    metrics += sorted(k for k in run_rows[0] if "/" in k)   # per-scenario columns (mixed training)
     with open(os.path.join(out_dir, "sweep_runs.csv"), "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=list(run_rows[0]))
         writer.writeheader()
