@@ -1,0 +1,21 @@
+# Rush-hour experiment. Every DQN so far loses to the fixed timer on rush hour
+# (~200 vs ~140 vehicles waiting) and serves fewer vehicles per hour. This
+# trains on rush hour ONLY to answer: can any DQN beat the fixed timer here?
+# Grid tests two hypotheses:
+#   switch_penalty: 0 vs 5  -- is the switching cost making the agent hesitate?
+#   gamma: 0.95 vs 0.99     -- saturated traffic pays off over longer horizons
+# Run:
+#   traffic-drl sweep --config configs/dqn_rush.yaml --scenario configs/scenarios/rush_hour.yaml --out-dir results_sweep_rush_a
+extends: dqn.yaml
+name: intersection_dqn_rush
+
+sweep:
+  episodes: 120
+  eval_episodes: 2
+  seeds: [0, 1, 2, 3]
+  grid:
+    learning_rate: [0.0005]
+    target_sync_steps: [100]
+    epsilon_decay: [0.96]
+    gamma: [0.95, 0.99]
+    reward.switch_penalty: [0, 5]

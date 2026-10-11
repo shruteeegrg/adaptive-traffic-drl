@@ -1,0 +1,18 @@
+# Second rush-hour experiment: reward weighting and exploration.
+#   backlog_weight: 0.1 vs 0.5 -- under saturation, vehicles queued outside the
+#                                 network are most of the real delay
+#   epsilon_decay: 0.96 vs 0.98 -- slower decay = more exploration over 150 episodes
+# Run:
+#   traffic-drl sweep --config configs/dqn_rush_b.yaml --scenario configs/scenarios/rush_hour.yaml --out-dir results_sweep_rush_b
+extends: dqn.yaml
+name: intersection_dqn_rush_b
+
+sweep:
+  episodes: 150
+  eval_episodes: 2
+  seeds: [0, 1, 2]
+  grid:
+    learning_rate: [0.0005]
+    target_sync_steps: [100]
+    epsilon_decay: [0.96, 0.98]
+    reward.backlog_weight: [0.1, 0.5]
