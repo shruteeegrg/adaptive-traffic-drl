@@ -204,3 +204,12 @@
 ## Commits this period
 
 - see `git log` on `main` (Week 6 commits)
+
+## Rush-hour and mixed follow-up sweeps (gamma)
+
+- `results_sweep_rush_a`: gamma 0.99 took rush-hour waiting from 230-300 (gamma 0.95) to 145-187 on every seed; spread across seeds fell from +-46..83 to +-11..14. Switch penalty 5 vs 0 mattered little once gamma was right.
+- `results_sweep_rush_b` (backlog weight, exploration decay): no visible effect.
+- `results_sweep_rush_c` (250 episodes, decay 0.98): gamma 0.99 did NOT reproduce (153-304); best checkpoints came at episode 20-30, so longer training looks harmful. Two things changed at once, so the cause is untested.
+- `results_sweep_mixed_g99`: low traffic and tidal fine, rush hour still 280-370 -- one model for all patterns is unsolved.
+- Fresh-seed check (seeds 30000, 10 episodes): fixed-time rush hour 139.7; best rush checkpoint (gamma 0.995, seed 1) 140.8 -- it MATCHES fixed-time, it does not beat it (rule fixed in advance: must be below 139.7). The checkpoint was picked after seeing four fresh-seed results, so treat the match as slightly optimistic. Mixed seed 2: low traffic 0.5 (fixed 1.5, but 121 switches vs 41), tidal 54.8 (fixed 115).
+- Demo uses the best checkpoint per scenario: tidal `dqn_final`, rush `dqn_rush`, low traffic `dqn_mixed`.

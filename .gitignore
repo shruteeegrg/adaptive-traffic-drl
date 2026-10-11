@@ -18,6 +18,8 @@ tripinfo.xml
 checkpoints/*
 !checkpoints/.gitkeep
 !checkpoints/dqn_final.npz
+!checkpoints/dqn_rush.npz
+!checkpoints/dqn_mixed.npz
 
 # Logs / data dumps
 *.log

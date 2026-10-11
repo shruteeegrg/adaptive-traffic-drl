@@ -100,6 +100,14 @@ def test_helpers_and_results_table():
     assert app.queue_bars_html(["east", "north"], [3, 99]).count("width:100%") == 1   # capped at the scale
 
 
+def test_best_checkpoint_is_chosen_per_scenario():
+    tidal, rush = "configs/scenarios/tidal.yaml", "configs/scenarios/rush_hour.yaml"
+    assert core.resolve_checkpoint(core.AUTO, tidal) == "checkpoints/dqn_final.npz"
+    assert core.resolve_checkpoint(core.AUTO, rush) == "checkpoints/dqn_rush.npz"
+    assert core.resolve_checkpoint(core.AUTO, "configs/scenarios/low_traffic.yaml") == "checkpoints/dqn_mixed.npz"
+    assert core.resolve_checkpoint("checkpoints/dqn_final.npz", rush) == "checkpoints/dqn_final.npz"   # explicit choice wins
+
+
 def _app_test():
     from streamlit.testing.v1 import AppTest
     return AppTest.from_file(os.path.join(ROOT, "traffic_drl", "app.py"), default_timeout=90)

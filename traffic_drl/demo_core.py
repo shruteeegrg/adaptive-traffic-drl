@@ -22,6 +22,13 @@ SCENARIOS = {
 CONTROLLERS = {"fixed": "Fixed-time (40 s per direction)", "dqn": "DQN agent"}
 SHORT_NAMES = {"fixed": "Fixed-time", "dqn": "DQN agent"}   # chart legend labels
 GRAY, BLUE = "#8a8985", "#2a78d6"    # same colours as the report figures
+AUTO = "Best for this scenario (recommended)"
+# Checkpoint that did best on fresh seeds for each scenario (see logs/week-06.md).
+BEST_CHECKPOINT = {
+    "configs/scenarios/tidal.yaml": ("checkpoints/dqn_final.npz", "trained on tidal traffic"),
+    "configs/scenarios/rush_hour.yaml": ("checkpoints/dqn_rush.npz", "trained on rush-hour traffic"),
+    "configs/scenarios/low_traffic.yaml": ("checkpoints/dqn_mixed.npz", "trained on a mix of scenarios"),
+}
 RESULT_SCENARIOS = {"tidal": "Tidal", "rush": "Rush hour", "low": "Low traffic"}
 
 
@@ -53,6 +60,15 @@ def read_new_events(path: str, offset: int):
         return [], offset
     events = [json.loads(line) for line in chunk[:end].decode().splitlines() if line.strip()]
     return events, offset + end + 1
+
+
+def resolve_checkpoint(choice: str, scenario_yaml: str) -> str:
+    """The sidebar's "best for this scenario" option picks the checkpoint that tested best
+    there; anything else is used as chosen. Falls back to the shipped tidal model."""
+    if choice != AUTO:
+        return choice
+    path = BEST_CHECKPOINT.get(scenario_yaml, ("checkpoints/dqn_final.npz", ""))[0]
+    return path if (ROOT / path).exists() else "checkpoints/dqn_final.npz"
 
 
 def list_checkpoints() -> list:
@@ -90,7 +106,10 @@ def results_table() -> list:
 
     rows = []
     for key, label in RESULT_SCENARIOS.items():
-        base, dqn = ROOT / "figures" / f"{key}_baseline.csv", ROOT / "figures" / f"{key}_dqn.csv"
+        base = ROOT / "figures" / f"{key}_baseline.csv"
+        dqn = ROOT / "figures" / f"{key}_best.csv"          # best checkpoint for this scenario
+        if not dqn.exists():
+            dqn = ROOT / "figures" / f"{key}_dqn.csv"
         if not (base.exists() and dqn.exists()):
             continue
 

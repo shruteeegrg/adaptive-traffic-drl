@@ -97,7 +97,8 @@ def main() -> None:
         st.header("Run a comparison")
         scenario_label = st.selectbox("Traffic scenario", list(core.SCENARIOS))
         checkpoints = core.list_checkpoints()
-        checkpoint = st.selectbox("DQN checkpoint", checkpoints or ["(none found in checkpoints/)"])
+        checkpoint_choice = st.selectbox("DQN checkpoint", [core.AUTO] + checkpoints if checkpoints
+                                         else ["(none found in checkpoints/)"])
         seed = st.number_input("Random seed (same traffic for both)", value=40000, step=1)
         delay = st.slider("Playback speed", 0.0, 0.2, 0.05, 0.01,
                           help="Pause per decision. 0 = as fast as possible (a 30-minute episode takes ~2 s).")
@@ -150,6 +151,7 @@ def main() -> None:
         if run_clicked:
             out_dir = tempfile.mkdtemp(prefix="traffic_drl_demo_")
             scenario_yaml = core.SCENARIOS[scenario_label]
+            checkpoint = core.resolve_checkpoint(checkpoint_choice, scenario_yaml)
             files, procs = {}, {}
             for key in ("fixed", "dqn"):
                 files[key] = (os.path.join(out_dir, f"{key}.jsonl"), os.path.join(out_dir, f"{key}.err"))
@@ -199,17 +201,18 @@ def main() -> None:
         st.write("Each number is the average of 10 test episodes of 30 simulated minutes, run on random "
                  "seeds the agent never saw while training. Lower waiting is better; higher vehicles/hour is better.")
         table = core.results_table()
-        figure = core.ROOT / "figures" / "compare_final.png"
+        figure = core.ROOT / "figures" / "compare_best.png"
         if figure.exists():
             st.image(str(figure))
         if table:
             st.dataframe(pd.DataFrame(table), hide_index=True)
         st.markdown(
-            "**What this shows.** On *tidal* traffic (heavy one way, then the other) the DQN agent cuts the number "
-            "of vehicles waiting by about 91% compared with the fixed timer. On balanced rush-hour traffic and on "
-            "very light traffic the fixed timer is still better. This agent was trained only on tidal traffic. "
-            "Training on a mix of scenarios fixed the light-traffic case, but rush hour (both roads saturated) is "
-            "still an open problem, and we are running experiments on it.")
+            "**What this shows.** The agent that was trained for each kind of traffic is used here. "
+            "On *tidal* traffic (heavy one way, then the other) the DQN agent cuts the number of vehicles waiting "
+            "by about 91% compared with the fixed timer, and it also serves more vehicles per hour. On very light traffic "
+            "both are close to zero waiting (the DQN slightly lower, though it switches the lights far more often). On *rush hour* (both roads saturated) it only **matches** the fixed timer, within "
+            "test noise: the fixed timer is already close to the best you can do when every road is full. "
+            "One model that handles every pattern is not solved yet; the model trained on a mix still does poorly on rush hour.")
         if not table and not figure.exists():
             st.info("No saved results found in the figures/ folder.")
 
