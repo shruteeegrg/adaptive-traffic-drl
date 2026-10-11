@@ -153,3 +153,13 @@ if __name__ == "__main__":
         if name.startswith("test_"):
             fn()
             print("ok", name)
+
+
+def test_junction_drawing_shows_queues_and_signal():
+    from traffic_drl import app
+    names = ["east", "north", "west", "south"]
+    svg = app.junction_html(names, [3, 0, 99, 1], green=0)
+    assert svg.startswith("<svg") and svg.endswith("</svg>")
+    assert svg.count('fill="#2a78d6"') == 3 + 0 + 12 + 1          # one square per queued car, capped at 12
+    assert svg.count("#1e9e5a") == 2 and svg.count("#c0392b") == 2  # north-south green, east-west red
+    assert "East: 3" in svg and "West: 99" in svg

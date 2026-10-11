@@ -18,6 +18,7 @@ model), reward is used instead.
 import copy
 import csv
 import itertools
+import json
 import os
 import statistics
 
@@ -55,6 +56,13 @@ def run_sweep(env, config: dict, grid: dict, seeds, episodes: int, out_dir: str,
     for si, setting in enumerate(settings, start=1):
         for seed in seeds:
             run_id = f"{_setting_id(setting)}_seed-{seed}"
+            row_path = os.path.join(runs_dir, f"{run_id}_row.json")
+            if os.path.exists(row_path):                      # finished in an earlier (interrupted) sweep
+                with open(row_path) as f:
+                    run_rows.append(json.load(f))
+                if verbose:
+                    print(f"[{si}/{len(settings)}] {run_id}  (already done, skipped)")
+                continue
             cfg = copy.deepcopy(config)
             agent_params = {k: v for k, v in setting.items() if not k.startswith(REWARD_PREFIX)}
             reward_params = {k[len(REWARD_PREFIX):]: v for k, v in setting.items() if k.startswith(REWARD_PREFIX)}
@@ -79,6 +87,8 @@ def run_sweep(env, config: dict, grid: dict, seeds, episodes: int, out_dir: str,
                     env.reward_cfg.update(original_reward)   # never leak one setting's reward into the next
             row = {**setting, "seed": seed, **final, "best_episode": history.get("best_episode", "")}
             run_rows.append(row)
+            with open(row_path, "w") as f:
+                json.dump(row, f)
             if verbose:
                 print("    final eval: " + "  ".join(f"{k}={final[k]:.2f}" for k in METRIC_KEYS if k in final))
                 per = "  ".join(f"[{k.split('/')[0]}] wait={v:.1f}" for k, v in final.items()

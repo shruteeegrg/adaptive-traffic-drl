@@ -45,6 +45,42 @@ def signal_html(green: int) -> str:
             f'{box("North–South", green == 0)}{box("East–West", green == 1)}</div>')
 
 
+def junction_html(names, queues, green: int, cap: int = 12) -> str:
+    """Top-down schematic of the junction: each road shows its queued vehicles as
+    squares lined up at the stop line, with a signal lamp. Drawn from the same
+    numbers as the counters (not SUMO's own animation); capped at `cap` squares."""
+    size, mid, half, car, step = 300, 150, 22, 8, 10
+    lane = 11                                  # vehicle lane offset from the road centre line
+    # road name -> (unit vector pointing away from the junction, signal group: 0 = north-south, 1 = east-west)
+    away = {"east": ((1, 0), 1), "north": ((0, -1), 0), "west": ((-1, 0), 1), "south": ((0, 1), 0)}
+    label_at = {"east": (size - 6, mid + 44, "end"), "north": (mid + 30, 14, "start"),
+                "west": (6, mid - 34, "start"), "south": (mid - 30, size - 8, "end")}
+    out = [f'<svg viewBox="0 0 {size} {size}" style="width:100%;max-width:340px;display:block;margin:0 auto 6px">',
+           f'<rect width="{size}" height="{size}" rx="8" fill="#f4f4f1"/>',
+           f'<rect x="0" y="{mid - half}" width="{size}" height="{2 * half}" fill="#6b6b68"/>',
+           f'<rect x="{mid - half}" y="0" width="{2 * half}" height="{size}" fill="#6b6b68"/>']
+    for (x1, y1, x2, y2) in ((0, mid, mid - half, mid), (mid + half, mid, size, mid),
+                             (mid, 0, mid, mid - half), (mid, mid + half, mid, size)):
+        out.append(f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="#fff" stroke-dasharray="6 5"/>')
+    for name, q in zip(names, queues):
+        if name not in away:
+            continue
+        (ux, uy), group = away[name]
+        px, py = uy, -ux                       # lane direction: vehicles drive on the right
+        for k in range(min(int(q), cap)):
+            d = half + 6 + k * step
+            cx, cy = mid + ux * d + px * lane, mid + uy * d + py * lane
+            out.append(f'<rect x="{cx - car / 2:.0f}" y="{cy - car / 2:.0f}" width="{car}" height="{car}" rx="2" fill="#2a78d6"/>')
+        lamp = "#1e9e5a" if green == group else "#c0392b"
+        lx, ly = mid + ux * (half + 1) + px * lane, mid + uy * (half + 1) + py * lane
+        out.append(f'<circle cx="{lx}" cy="{ly}" r="5" fill="{lamp}" stroke="#fff" stroke-width="1.5"/>')
+        tx, ty, anchor = label_at[name]
+        out.append(f'<text x="{tx}" y="{ty}" font-size="11" fill="#333" text-anchor="{anchor}">'
+                   f'{name.capitalize()}: {int(q)}</text>')
+    out.append("</svg>")
+    return "".join(out)
+
+
 def main() -> None:
     import pandas as pd
     import streamlit as st
@@ -85,7 +121,7 @@ def main() -> None:
                         st.write("waiting for the simulator to start…")
                         continue
                     last = evs[-1]
-                    st.markdown(signal_html(last["green"]) + queue_bars_html(names, last["queues"]),
+                    st.markdown(signal_html(last["green"]) + junction_html(names, last["queues"], last["green"]),
                                 unsafe_allow_html=True)
                     c1, c2, c3 = st.columns(3)
                     c1.metric("Vehicles waiting now", last["waiting"])
@@ -171,8 +207,9 @@ def main() -> None:
         st.markdown(
             "**What this shows.** On *tidal* traffic (heavy one way, then the other) the DQN agent cuts the number "
             "of vehicles waiting by about 91% compared with the fixed timer. On balanced rush-hour traffic and on "
-            "very light traffic the fixed timer is still better. The agent was trained only on tidal traffic, so "
-            "next we are training it on a mix of scenarios to make it work everywhere.")
+            "very light traffic the fixed timer is still better. This agent was trained only on tidal traffic. "
+            "Training on a mix of scenarios fixed the light-traffic case, but rush hour (both roads saturated) is "
+            "still an open problem, and we are running experiments on it.")
         if not table and not figure.exists():
             st.info("No saved results found in the figures/ folder.")
 
@@ -195,7 +232,7 @@ vehicles waiting, vehicles served per hour and how often the lights switch, on s
 
 **What we found.** The first version learned to cheat by flipping the light every second; we found it because we
 tracked the number of switches, fixed the scoring, and added a test. The trained agent is excellent on uneven
-traffic but not yet on balanced or very light traffic, which is what we are working on next.
+traffic but not yet on balanced rush-hour traffic, which is what we are working on next. Mixed-scenario training already fixed the light-traffic case.
 """)
 
 

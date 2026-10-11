@@ -156,6 +156,24 @@ def test_sweep_writes_ranked_outputs():
     assert sum(f.endswith("_evals.csv") for f in files) == 4   # per-run evaluation history
 
 
+def test_sweep_resumes_without_redoing_finished_runs():
+    cfg = {"dqn": {"hidden_sizes": [8], "learn_start": 50, "batch_size": 16}}
+    grid = {"learning_rate": [0.001, 0.003]}
+    kw = dict(seeds=[0], max_steps=60, eval_every=3, final_eval_episodes=1, verbose=False)
+    with tempfile.TemporaryDirectory() as d:
+        run_sweep(_toy(), cfg, grid, episodes=3, out_dir=d, **kw)
+        first = {r["learning_rate"]: r["reward"] for r in csv.DictReader(open(os.path.join(d, "sweep_runs.csv")))}
+        rows = sorted(f for f in os.listdir(os.path.join(d, "runs")) if f.endswith("_row.json"))
+        assert len(rows) == 2
+        os.remove(os.path.join(d, "runs", rows[1]))            # pretend the second run never finished
+        run_sweep(_toy(), cfg, grid, episodes=4, out_dir=d, **kw)   # different length, so a redo would differ
+        second = {r["learning_rate"]: r["reward"] for r in csv.DictReader(open(os.path.join(d, "sweep_runs.csv")))}
+    assert len(second) == 2
+    kept = rows[0]
+    kept_lr = next(lr for lr in first if f"learning_rate-{lr}" in kept)
+    assert second[kept_lr] == first[kept_lr]
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

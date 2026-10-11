@@ -17,10 +17,10 @@ with open(a.out, "w") as f:
         f.write(json.dumps(e) + "\n"); f.flush()
     emit({"event": "start", "controller": a.controller, "scenario": "fake", "approaches": ["east", "north", "west", "south"], "episode_length": 300})
     for i in range(1, 31):
-        snap = {"t": i * 10.0, "queues": [i % 5, 2, i % 3, 1], "backlog": i, "waiting": int((i + 5) * scale * 4),
+        snap = {"t": i * 10.0, "queues": [i % 13, 2 + i % 7, (i * 2) % 11, 1], "backlog": i, "waiting": int((i + 5) * scale * 4),
                 "green": (i // 5) % 2, "mean_queue": 3.0, "mean_backlog": 2.0,
                 "mean_total_waiting": 100.0 * scale, "avg_wait_per_vehicle": 10.0,
                 "throughput_per_hour": 2000.0 + (500 if a.controller == "dqn" else 0), "arrived": i * 3,
                 "switches": i // 5, "ns_green_fraction": 0.5}
         emit({"event": "done" if i == 30 else "step", **snap})
-        time.sleep(0.01)
+        time.sleep(0.15)
