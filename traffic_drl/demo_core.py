@@ -71,6 +71,19 @@ def resolve_checkpoint(choice: str, scenario_yaml: str) -> str:
     return path if (ROOT / path).exists() else "checkpoints/dqn_final.npz"
 
 
+def align_series(series: dict):
+    """One DataFrame from several {name: pandas.Series indexed by minutes}.
+
+    The two controllers report at different simulated times (a decision that switches
+    the light takes longer than one that keeps it), so their indexes differ. Joined
+    naively, each line has gaps and the chart draws broken lines; interpolating inside
+    each line's own range joins them up without inventing data beyond what was reached."""
+    import pandas as pd
+
+    df = pd.DataFrame(series).sort_index()
+    return df.interpolate(method="index", limit_area="inside")
+
+
 def list_checkpoints() -> list:
     paths = sorted(glob.glob(str(ROOT / "checkpoints" / "*.npz")))
     return [os.path.relpath(p, ROOT) for p in paths]

@@ -108,6 +108,16 @@ def test_best_checkpoint_is_chosen_per_scenario():
     assert core.resolve_checkpoint("checkpoints/dqn_final.npz", rush) == "checkpoints/dqn_final.npz"   # explicit choice wins
 
 
+def test_chart_lines_are_joined_when_controllers_report_at_different_times():
+    import pandas as pd
+    a = pd.Series([1.0, 3.0, 5.0], index=[0.0, 0.2, 0.4])
+    b = pd.Series([2.0, 4.0], index=[0.1, 0.3])
+    df = core.align_series({"a": a, "b": b})
+    assert list(df.index) == [0.0, 0.1, 0.2, 0.3, 0.4]
+    assert df["a"].tolist() == [1.0, 2.0, 3.0, 4.0, 5.0]       # filled between its own points
+    assert df["b"].isna().tolist() == [True, False, False, False, True]   # not extended past its range
+
+
 def _app_test():
     from streamlit.testing.v1 import AppTest
     return AppTest.from_file(os.path.join(ROOT, "traffic_drl", "app.py"), default_timeout=90)

@@ -135,7 +135,7 @@ def main() -> None:
                     series[core.SHORT_NAMES[key]] = pd.Series([e["waiting"] for e in evs],
                                                               index=[e["t"] / 60 for e in evs])
             if series:
-                df = pd.DataFrame(series)
+                df = core.align_series(series)
                 colors = {core.SHORT_NAMES["fixed"]: core.GRAY, core.SHORT_NAMES["dqn"]: core.BLUE}
                 chart_ph.line_chart(df, color=[colors[c] for c in df.columns],
                                     x_label="simulated minutes", y_label="vehicles waiting", height=260)
