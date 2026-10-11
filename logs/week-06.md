@@ -167,6 +167,17 @@
   (restored after each run) so the switch penalty can be tested. `configs/dqn_mixed.yaml`:
   low / rush / tidal, 2 epsilon decays x switch penalty {0, 5} x 3 seeds, 120 episodes.
 
+## Follow-up 8: demo app
+
+- `traffic-drl demo` launches a Streamlit app (`traffic_drl/app.py`): a live tab that runs the
+  fixed timer and the DQN agent side by side on the same traffic (signal state, per-road
+  queues, counters, shared "vehicles waiting" chart, one-sentence verdict), a test-results
+  tab (saved comparison figure + table; works without SUMO) and a plain-language "how it works" tab.
+- `traffic-drl run` streams one controller's episode as JSON lines (the app starts one
+  process per controller and polls the files); `TraciEnv.snapshot()` exposes the live state.
+- Tested end to end with a fake simulator (real subprocesses) and rendered headlessly in Chrome;
+  the real-SUMO live run still needs checking on the Windows machine.
+
 ## Planned for next week (Week 7)
 
 - [ ] Run the sweep on real SUMO (rush hour), pick settings, train and ship the
