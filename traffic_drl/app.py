@@ -171,8 +171,9 @@ def main() -> None:
         st.markdown(
             "**What this shows.** On *tidal* traffic (heavy one way, then the other) the DQN agent cuts the number "
             "of vehicles waiting by about 91% compared with the fixed timer. On balanced rush-hour traffic and on "
-            "very light traffic the fixed timer is still better. The agent was trained only on tidal traffic, so "
-            "next we are training it on a mix of scenarios to make it work everywhere.")
+            "very light traffic the fixed timer is still better. This agent was trained only on tidal traffic. "
+            "Training on a mix of scenarios fixed the light-traffic case, but rush hour (both roads saturated) is "
+            "still an open problem, and we are running experiments on it.")
         if not table and not figure.exists():
             st.info("No saved results found in the figures/ folder.")
 
@@ -195,7 +196,7 @@ vehicles waiting, vehicles served per hour and how often the lights switch, on s
 
 **What we found.** The first version learned to cheat by flipping the light every second; we found it because we
 tracked the number of switches, fixed the scoring, and added a test. The trained agent is excellent on uneven
-traffic but not yet on balanced or very light traffic, which is what we are working on next.
+traffic but not yet on balanced rush-hour traffic, which is what we are working on next. Mixed-scenario training already fixed the light-traffic case.
 """)
 
 
