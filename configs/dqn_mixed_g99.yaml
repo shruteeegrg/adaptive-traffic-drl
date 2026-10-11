@@ -1,0 +1,17 @@
+# Mixed-scenario training again, now with gamma 0.99 (the rush-hour sweep showed
+# gamma is the lever). Goal: one model that is good on low traffic, rush hour and tidal.
+# Run:
+#   traffic-drl sweep --config configs/dqn_mixed_g99.yaml --out-dir results_sweep_mixed_g99
+extends: dqn_mixed.yaml
+name: intersection_dqn_mixed_g99
+
+sweep:
+  episodes: 150
+  eval_episodes: 1
+  seeds: [0, 1, 2, 3]
+  grid:
+    learning_rate: [0.0005]
+    target_sync_steps: [100]
+    epsilon_decay: [0.96]
+    gamma: [0.99]
+    reward.switch_penalty: [5]
