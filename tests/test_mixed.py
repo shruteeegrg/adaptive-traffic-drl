@@ -73,6 +73,25 @@ def test_evaluate_pins_each_scenario_without_disturbing_the_training_cycle():
     assert _route(fake) == "rush_hour.rou.xml"
 
 
+def test_oversampled_scenario_is_cycled_twice_but_evaluated_once():
+    fake = FakeTraci()
+    traci_env.traci = fake
+    env = traci_env.TraciEnv(os.path.join(ROOT, "configs", "dqn_mixed_rush2.yaml"))
+    seen = []
+    for _ in range(4):
+        env.reset()
+        seen.append(_route(fake))
+    assert seen == ["low_traffic.rou.xml", "rush_hour.rou.xml", "tidal.rou.xml", "rush_hour.rou.xml"]
+    calls, orig = [], fake.start
+
+    def record(cmd):
+        calls.append(os.path.basename(cmd[cmd.index("--route-files") + 1]))
+        orig(cmd)
+    fake.start = record
+    evaluate(env, Stub(), episodes=1, max_steps=2)
+    assert sorted(calls) == ["low_traffic.rou.xml", "rush_hour.rou.xml", "tidal.rou.xml"]   # rush hour once, not twice
+
+
 def test_aggregation_uses_log_scale_for_waiting_and_means_elsewhere():
     agg = _aggregate({
         "low": {"mean_total_waiting": 1.5, "throughput_per_hour": 400.0, "switches": 4.0},

@@ -64,6 +64,8 @@ def evaluate(env, agent, episodes: int = 2, max_steps: int = None, seed_base: in
     per_scenario = {}
     try:
         for i, name in enumerate(names):
+            if name in per_scenario:         # a scenario listed twice (over-sampled in training) is scored once
+                continue
             env.force_scenario = i
             per_scenario[name] = _evaluate_one(env, agent, episodes, max_steps, seed_base)
     finally:
