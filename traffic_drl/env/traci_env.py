@@ -167,6 +167,8 @@ class TraciEnv:
         self._departed = 0          # vehicles that entered the network
         self._switches = 0          # phase changes the agent caused
         self._green_seconds = [0.0, 0.0]  # green time given to each action's phase
+        self._last_queues = [0] * len(self.approaches)  # halted vehicles per approach, latest second
+        self._backlog_now = 0                           # vehicles waiting to enter, latest second
 
     def _advance(self, seconds: float):
         n_steps = max(1, round(seconds / self.step_length))
@@ -175,14 +177,16 @@ class TraciEnv:
             self._elapsed += self.step_length
             # Measured every simulated second -- including yellow time -- so
             # the metrics don't depend on how often the agent switches.
-            queue_now = sum(
+            self._last_queues = [
                 traci.edge.getLastStepHaltingNumber(a["incoming_edge"]) for a in self.approaches
-            )
+            ]
+            queue_now = sum(self._last_queues)
             self._queue_seconds += self.step_length * queue_now
             # Approach edges are short (~12 vehicles), so under heavy demand SUMO
             # holds the overflow in an insertion backlog that the halting
             # count above cannot see; count it too.
             backlog_now = len(traci.simulation.getPendingVehicles())
+            self._backlog_now = backlog_now
             self._backlog_seconds += self.step_length * backlog_now
             wait_now = (
                 sum(traci.edge.getWaitingTime(a["incoming_edge"]) for a in self.approaches)
@@ -192,6 +196,19 @@ class TraciEnv:
                 self.reward_cfg, queue_now, wait_now, backlog_now)
             self._arrived += traci.simulation.getArrivedNumber()
             self._departed += traci.simulation.getDepartedNumber()
+
+    def snapshot(self) -> dict:
+        """Where the junction is right now, for live display: simulated time,
+        queue per approach, the backlog, which action's green is active, and
+        the running episode metrics."""
+        return {
+            "t": self._elapsed,
+            "queues": list(self._last_queues),
+            "backlog": self._backlog_now,
+            "waiting": sum(self._last_queues) + self._backlog_now,
+            "green": self._action,
+            **self.metrics(),
+        }
 
     def metrics(self) -> dict:
         """Per-second evaluation metrics for the episode so far. These, not

@@ -21,7 +21,7 @@ Build order (see README.md 10-week plan):
   Week 5: `train --agent dqn` wired to a real agent (done)
   Week 6: `evaluate` runs a checkpoint on a scenario (pulled forward); Week 7 adds plotting
   Week 8: `compare` wired to traffic_drl.baseline + scenario configs
-  Week 8: `demo` wired to traffic_drl.app (Streamlit)
+  `demo` launches the Streamlit app (traffic_drl/app.py); `run` streams one controller's episode for it
 """
 
 import argparse
@@ -50,6 +50,16 @@ def build_parser() -> argparse.ArgumentParser:
     baseline.add_argument("--episodes", type=int, default=3)
     baseline.add_argument("--save-csv", help="Write per-episode metrics to this CSV (for `plot compare`)")
     baseline.add_argument("--seed-base", type=int, default=10000, help="First SUMO seed for evaluation episodes")
+
+    run = sub.add_parser("run", help="Run one controller on one scenario, streaming JSON-lines events (used by the demo app)")
+    run.add_argument("--controller", choices=["fixed", "dqn"], required=True)
+    run.add_argument("--config", default="configs/dqn.yaml")
+    run.add_argument("--scenario", help="Scenario YAML")
+    run.add_argument("--checkpoint", default="checkpoints/dqn_final.npz", help="DQN checkpoint (dqn controller only)")
+    run.add_argument("--seed", type=int, default=40000, help="SUMO seed (same seed = same traffic)")
+    run.add_argument("--delay", type=float, default=0.0, help="Seconds to pause per decision, for watchable playback")
+    run.add_argument("--green", type=int, default=42, help="Fixed-time green duration in seconds")
+    run.add_argument("--out", required=True, help="JSON-lines output path")
 
     plot = sub.add_parser("plot", help="Draw charts from saved logs and results")
     plot_sub = plot.add_subparsers(dest="plot_kind", required=True)
@@ -160,6 +170,31 @@ def _train(args) -> int:
     agent.save(ckpt_path)
     plot_path = plot_reward_curve(log_path, os.path.join(args.out_dir, f"{args.agent}_reward_curve.png"))
     print(f"saved checkpoint={ckpt_path} log={log_path} plot={plot_path}")
+    return 0
+
+
+def _run(args) -> int:
+    from traffic_drl.agent import DQNAgent
+    from traffic_drl.baseline import FixedTimeAgent
+    from traffic_drl.config import load_config
+    from traffic_drl.env import TraciEnv
+    from traffic_drl.live import stream_run
+
+    config = load_config(args.config)
+    env = TraciEnv(args.config, scenario=args.scenario, seed=args.seed)
+    try:
+        if args.controller == "fixed":
+            agent = FixedTimeAgent(green_steps=max(1, round(args.green / env.decision_interval)))
+        else:
+            agent = DQNAgent.from_config(config, state_dim=env.state_size)
+            try:
+                agent.load(args.checkpoint)
+            except (OSError, ValueError) as e:
+                raise SystemExit(f"cannot load checkpoint {args.checkpoint}: {e}")
+        name = env.scenario_names[0] if env.scenario_names else "default demand"
+        stream_run(env, agent, args.out, args.controller, name, delay=args.delay)
+    finally:
+        env.close()
     return 0
 
 
@@ -348,6 +383,8 @@ def main(argv=None) -> int:
         print(f"step() OK — ran {i + 1} steps, total_reward={total_reward:.1f}, final_state={state}")
     elif args.command == "train":
         return _train(args)
+    elif args.command == "run":
+        return _run(args)
     elif args.command == "plot":
         return _plot(args)
     elif args.command == "baseline":
@@ -359,7 +396,12 @@ def main(argv=None) -> int:
     elif args.command == "compare":
         print(f"[stub] would compare config={args.config} scenarios={args.scenarios}")
     elif args.command == "demo":
-        print("[stub] would launch: streamlit run traffic_drl/app.py")
+        import subprocess
+        from pathlib import Path
+
+        app = Path(__file__).with_name("app.py")
+        return subprocess.call([sys.executable, "-m", "streamlit", "run", str(app)],
+                               cwd=str(Path(__file__).resolve().parents[1]))
 
     return 0
 
