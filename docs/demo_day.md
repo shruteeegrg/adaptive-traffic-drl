@@ -14,6 +14,22 @@
 ## The one-sentence version
 We built a traffic-light controller that learns by trial and error (a DQN, written from scratch, no RL libraries) and compared it with a normal fixed timer in the SUMO traffic simulator.
 
+## The three scenarios (what "traffic" means in each)
+The junction has four roads (east, north, west, south). Every number below is "vehicles per hour arriving on each road", and every car goes straight through (no turns). Each demo run is 30 simulated minutes.
+
+| Scenario | Arrivals per road | What it looks like | Why we test it |
+|---|---|---|---|
+| **Low traffic** | 120 per hour (a car about every 30 s) | Almost empty roads, no real queues. | Checks the controller does not do silly things when there is nothing to manage. |
+| **Rush hour** | 900 per hour on every road (a car about every 4 s) | All four roads are busy at once. Queues build on every side and some roads fill up completely. | The hardest fair test: nobody can be left waiting forever, and the green time has to be shared well. |
+| **Tidal** | North-south 1100 per hour and east-west 300 per hour for the first 15 minutes, then it flips: east-west 1100 and north-south 300 for the last 15 minutes | Heavy traffic one way, light the other way, then the roles swap, like a commuter flow into a city in the morning and out in the evening. | A fixed timer gives both directions equal green, so it wastes green on the quiet road while the busy road jams. This is where an adaptive controller should shine. |
+
+(The "standard" scenario with 300 per hour on every road is the base setup the others were generated from; it is not in the demo.)
+
+In the demo, say it in one line each:
+- **Low traffic:** "Hardly any cars."
+- **Rush hour:** "Everyone is on the road at once."
+- **Tidal:** "Heavy one way, then the other, like a commute."
+
 ## Run order (sidebar: scenario, checkpoint "Best for this scenario", seed 40000, speed 0.05)
 | # | Scenario | What to point at | What to say |
 |---|---|---|---|
@@ -47,10 +63,38 @@ My live numbers today (fill in):
 - **Chart:** vehicles waiting over time. Grey = fixed timer, blue = DQN. Lower line is better.
 
 ## How it works (if asked)
-- Every 5 simulated seconds the agent sees the junction (queue and waiting time per road, which direction is green, how long) and chooses: keep green or switch. SUMO adds a 3 s yellow when it switches.
-- It is rewarded for fewer waiting cars, and charged a small cost per switch.
-- DQN = Q-learning with a neural network (11 inputs, two hidden layers of 64, 2 outputs), replay buffer and target network. Hand-written, including backpropagation (checked against a numerical gradient).
-- Fair test: both controllers get the same traffic (same seed), test seeds are never used in training.
+
+### The setting
+SUMO is a traffic simulator: it moves every car second by second, with realistic acceleration, braking and gaps. Our Python code connects to it (through TraCI, SUMO's remote-control interface), reads what is happening at the junction, and tells the traffic light what to do. The junction has four roads and two light settings: north-south green, or east-west green.
+
+### The agent's loop (every 5 simulated seconds)
+1. **Look.** It reads 11 numbers: the queue on each of the 4 roads, how long the cars on each road have been waiting, which direction is green right now, and how long it has been green.
+2. **Choose.** Two options: keep the current green, or switch to the other direction. If it switches, SUMO inserts a 3-second yellow automatically.
+3. **Get scored.** Every simulated second costs "the number of cars waiting" (plus a small extra for cars held outside because a road is full). Switching costs a little extra, to stop it flickering. The reward is the negative of that cost, so fewer waiting cars means a better score.
+4. **Learn.** It stores what happened and updates itself so it picks better choices next time.
+
+### What DQN means
+The agent learns a number called a **Q-value** for each choice: roughly "how good is this choice, counting all the waiting it will cause or avoid in the next few minutes". Both choices get a Q-value and the agent picks the higher one.
+- A simple version stores Q-values in a lookup table (our first Q-table agent). That table only works when the situations are few and coarse.
+- **DQN** replaces the table with a small neural network: 11 inputs, two hidden layers of 64 units, 2 outputs (one Q-value per choice). Because a network can handle numbers it has never seen exactly, it copes with the many different queue situations that really occur.
+
+### Why a delay between action and result matters
+Switching has an **immediate cost** (3 s yellow where nobody moves, plus the switch cost) but pays off **later** (the long queue clears). So the agent has to value the future, not just the next second. The setting that controls this is called **gamma**: higher means it looks further ahead. Raising it from 0.95 to 0.99 is what fixed our rush-hour results.
+
+### The tricks that make DQN trainable
+- **Replay buffer:** it keeps a memory of past steps and learns from random samples, not only the most recent ones, so consecutive similar steps do not mislead it.
+- **Target network:** a slowly-updated copy of the network provides the learning targets, which keeps the learning from chasing itself.
+- **Exploration:** early on it tries random choices (epsilon starts at 1.0) so it discovers what works, then gradually relies more on what it has learned (down to 0.05).
+- All of this, including the network's learning step (backpropagation), is written by hand with NumPy, no RL libraries. We checked the gradients against a numerical test.
+
+### How we train and test it fairly
+- Training runs many 30-minute simulated episodes, each on different random traffic (a different seed).
+- Every few episodes it is tested on seeds it has not trained on, and the best version is saved.
+- Final results are measured on a **third** set of fresh seeds, because choosing the best of many runs makes results look better than they really are (we found a gap of about 134 vs 148 doing it wrong).
+- Both controllers always get the same traffic (same seed) in a comparison, so one cannot get luckier traffic than the other.
+
+### What the fixed-time controller is
+It does not learn. It gives north-south green for 40 seconds, then east-west green for 40 seconds, forever, no matter how many cars are waiting. It is the standard yardstick: a real signal on a timer.
 
 ## What we found along the way (good to mention)
 - First version learned to cheat by flipping the light every second. We caught it because we tracked the switch count, fixed the reward, and added a test.
