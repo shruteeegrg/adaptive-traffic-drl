@@ -90,7 +90,7 @@ Switching has an **immediate cost** (3 s yellow where nobody moves, plus the swi
 ### How we train and test it fairly
 - Training runs many 30-minute simulated episodes, each on different random traffic (a different seed).
 - Every few episodes it is tested on seeds it has not trained on, and the best version is saved.
-- Final results are measured on a **third** set of fresh seeds, because choosing the best of many runs makes results look better than they really are (we found a gap of about 134 vs 148 doing it wrong).
+- Final results are measured on a **third** set of fresh seeds, because choosing the best of many runs makes results look better than they really are.
 - Both controllers always get the same traffic (same seed) in a comparison, so one cannot get luckier traffic than the other.
 
 ### What the fixed-time controller is
