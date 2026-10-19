@@ -1,0 +1,26 @@
+{
+  "overall_actuated": "a_min10_max40_r4_g0",
+  "per_scenario": {
+    "tidal": {
+      "actuated": "a_min10_max40_r2.5_g0",
+      "actuated_spec": "actuated:min=10,max=40,ratio=2.5,gap=0",
+      "actuated_waiting": 7.155506620277963,
+      "fixed": "f_green30",
+      "fixed_waiting": 115.04389567147614
+    },
+    "rush_hour": {
+      "actuated": "a_min10_max90_r4_g0",
+      "actuated_spec": "actuated:min=10,max=90,ratio=4,gap=0",
+      "actuated_waiting": 125.19438866186385,
+      "fixed": "f_green30",
+      "fixed_waiting": 136.18609877913428
+    },
+    "low_traffic": {
+      "actuated": "a_min10_max40_r2.5_g0",
+      "actuated_spec": "actuated:min=10,max=40,ratio=2.5,gap=0",
+      "actuated_waiting": 0.21125,
+      "fixed": "f_green20",
+      "fixed_waiting": 0.8120565410199557
+    }
+  }
+}
