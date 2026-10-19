@@ -213,3 +213,10 @@
 - `results_sweep_mixed_g99`: low traffic and tidal fine, rush hour still 280-370 -- one model for all patterns is unsolved.
 - Fresh-seed check (seeds 30000, 10 episodes): fixed-time rush hour 139.7; best rush checkpoint (gamma 0.995, seed 1) 140.8 -- it MATCHES fixed-time, it does not beat it (rule fixed in advance: must be below 139.7). The checkpoint was picked after seeing four fresh-seed results, so treat the match as slightly optimistic. Mixed seed 2: low traffic 0.5 (fixed 1.5, but 121 switches vs 41), tidal 54.8 (fixed 115).
 - Demo uses the best checkpoint per scenario: tidal `dqn_final`, rush `dqn_rush`, low traffic `dqn_mixed`.
+
+## Density-responsive baseline: first version was flawed (tuning on selection seeds 20000, 20 episodes)
+
+- `results_tune_actuated` (first real-SUMO run of `compare`; fixed timer reproduces the earlier numbers: tidal 115.2, rush hour 139.2, low traffic 1.49).
+- The first density-responsive controller counted only HALTED vehicles. A lane with green has moving vehicles, so its halted count is about 0 and the controller gapped out as soon as `min_green` ended. Symptoms: `max_green` and `ratio` had no effect (identical results across them), 100 to 138 switches per episode against 41, and waiting 12 to 131 percent WORSE than the fixed timer on tidal and rush hour.
+- Fix: the controller is attached to the environment and counts all vehicles on each approach (`approach_vehicle_counts`, detector-style); the halted-queue fallback is kept only for unit tests. Tuning to be re-run.
+- Low traffic is a genuine win for adaptive control: wait per vehicle 11.0 s (fixed) vs 2.8 s, although vehicles waiting is tiny for both (1.5 vs 0.4), which is why the verdict rule has a per-metric absolute floor and `compare --metric avg_wait_per_vehicle` exists.

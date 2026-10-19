@@ -27,6 +27,8 @@ from traffic_drl import stats
 
 PRIMARY = "mean_total_waiting"
 SECONDARY = ("avg_wait_per_vehicle", "throughput_per_hour", "switches")
+# default absolute floor for the practical-significance rule, per metric (vehicles, seconds, vehicles per hour)
+MIN_ABS = {"mean_total_waiting": 2.0, "avg_wait_per_vehicle": 1.0, "throughput_per_hour": 50.0}
 
 
 def parse_controller(spec: str):
@@ -56,7 +58,7 @@ def build_agent(kind: str, arg: str, config: dict, env):
             if key not in aliases:
                 raise ValueError(f"unknown actuated parameter '{key}'; use min, max, gap, ratio")
             params[aliases[key]] = float(value)
-        return DensityActuatedAgent.from_config(config, **params)
+        return DensityActuatedAgent.from_config(config, **params).attach(env)
     from traffic_drl.agent import DQNAgent
 
     agent = DQNAgent.from_config(config, state_dim=env.state_size)
@@ -89,7 +91,7 @@ def resolve_scenario(name: str, config_path: str) -> str:
 
 
 def run_comparison(config_path, scenarios, controllers, episodes=100, seed_base=30000, out_dir="results_compare",
-                   reference=None, threshold=0.05, min_abs=2.0, metric=PRIMARY, env_factory=None, log=print):
+                   reference=None, threshold=0.05, min_abs=None, metric=PRIMARY, env_factory=None, log=print):
     from traffic_drl.agent import evaluate
     from traffic_drl.config import load_config
 
@@ -105,6 +107,8 @@ def run_comparison(config_path, scenarios, controllers, episodes=100, seed_base=
     reference = reference or labels[0]
     if reference not in labels:
         raise SystemExit(f"--reference {reference} is not one of {labels}")
+    if min_abs is None:
+        min_abs = MIN_ABS.get(metric, 0.0)
     os.makedirs(out_dir, exist_ok=True)
 
     episode_rows, summary = [], []
@@ -175,9 +179,9 @@ def _fmt_p(p):
 
 
 def markdown_table(summary, reference, threshold, min_abs, episodes, seed_base, metric=PRIMARY) -> str:
-    lines = [f"Metric: {metric} (vehicles waiting, lower is better). {episodes} episodes per cell, fresh seeds from "
+    lines = [f"Metric: {metric} (lower is better). {episodes} episodes per cell, fresh seeds from "
              f"{seed_base}, the same traffic for every controller. Reference: {reference}. "
-             f"Verdict needs p < 0.05 (Welch) and a change of at least {threshold:.0%} and {min_abs:g} vehicles.",
+             f"Verdict needs p < 0.05 (Welch) and a change of at least {threshold:.0%} and {min_abs:g} (units of the metric).",
              "",
              "| Scenario | Controller | Waiting (mean +- 95% CI) | Change vs ref | p (Welch) | p (paired) | Cohen d | Wait/vehicle (s) | Veh/hour | Switches | Verdict |",
              "|---|---|---|---|---|---|---|---|---|---|---|"]

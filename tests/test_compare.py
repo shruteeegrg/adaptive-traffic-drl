@@ -123,6 +123,37 @@ def test_actuated_gives_green_to_the_heavier_axis_and_extends_when_busy():
     assert a.act(_state([0, 0, 0, 0], 1, 20)) == 1                # nobody anywhere: stay
 
 
+def test_actuated_counts_moving_vehicles_like_a_detector_when_attached():
+    """The first version counted only halted vehicles, so a busy green axis (vehicles moving, none halted)
+    looked empty and was abandoned straight away. With detector-style counts it keeps the green."""
+    class Env:
+        def approach_vehicle_counts(self):
+            return [2, 8, 2, 8]                                   # busy north-south: vehicles are moving
+
+    state = _state([0, 0, 0, 0], 0, 20)                           # nothing halted anywhere
+    assert _actuated(min_green=10, ratio=1.5).act(state) == 0     # fallback on halted counts: other axis empty -> stay
+    blocked = _state([0, 0, 3, 0], 0, 20)                         # a little halted traffic waiting on east-west
+    assert _actuated(min_green=10).act(blocked) == 1              # halted-only view: north-south looks empty -> switch (the bug)
+    assert _actuated(min_green=10).attach(Env()).act(blocked) == 0    # detector view: NS has 16 vehicles vs 4 -> keep green
+    assert _actuated(min_green=10).attach(Env()).act(_state([0, 0, 3, 0], 0, 70)) == 1   # max green reached: switch
+
+
+def test_environment_exposes_detector_style_vehicle_counts():
+    traci_env.traci = FakeTraci()
+    env = traci_env.TraciEnv(CFG)
+    assert env.approach_vehicle_counts() == [6, 6, 6, 6]
+
+
+def test_compare_accepts_a_metric_and_uses_its_own_practical_floor():
+    from traffic_drl import cli
+    from traffic_drl.compare import MIN_ABS
+
+    args = cli.build_parser().parse_args(["compare", "--scenarios", "tidal", "--controller", "fixed",
+                                          "--metric", "avg_wait_per_vehicle"])
+    assert args.metric == "avg_wait_per_vehicle" and args.min_abs is None
+    assert MIN_ABS["avg_wait_per_vehicle"] == 1.0 and MIN_ABS["mean_total_waiting"] == 2.0
+
+
 # ------------------------------------------------------------------ Double DQN
 def _agent(double):
     ag = DQNAgent(state_dim=1, n_actions=2, hidden_sizes=(4,), batch_size=2, gamma=0.5, double_dqn=double)

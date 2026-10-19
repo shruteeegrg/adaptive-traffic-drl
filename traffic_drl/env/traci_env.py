@@ -235,6 +235,11 @@ class TraciEnv:
             "ns_green_fraction": self._green_seconds[0] / max(sum(self._green_seconds), 1e-9),
         }
 
+    def approach_vehicle_counts(self) -> list:
+        """Vehicles currently on each approach edge, moving ones included (a detector-style count).
+        Not part of the learning state; the density-responsive baseline reads it."""
+        return [traci.edge.getLastStepVehicleNumber(a["incoming_edge"]) for a in self.approaches]
+
     def _read_edges(self):
         edges = [a["incoming_edge"] for a in self.approaches]
         queues = [traci.edge.getLastStepHaltingNumber(e) for e in edges]

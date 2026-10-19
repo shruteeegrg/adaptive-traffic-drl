@@ -29,7 +29,7 @@ def main(argv=None, env_factory=None):
     ap.add_argument("--min-green", default="10,15,20")
     ap.add_argument("--max-green", default="40,60,90")
     ap.add_argument("--ratio", default="1.5,2.5")
-    ap.add_argument("--gap", default="1")
+    ap.add_argument("--gap", default="0")
     ap.add_argument("--out-dir", default="results_tune_actuated")
     args = ap.parse_args(argv)
 

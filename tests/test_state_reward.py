@@ -100,6 +100,7 @@ class FakeTraci:
     def setPhase(self, tls, phase): self.phases.append(phase)
     def getLastStepHaltingNumber(self, e): return 4
     def getWaitingTime(self, e): return 20.0
+    def getLastStepVehicleNumber(self, e): return 6
     def getMinExpectedNumber(self): return 1
     def getPendingVehicles(self): return ('v1', 'v2', 'v3')
     def getArrivedNumber(self): return 1

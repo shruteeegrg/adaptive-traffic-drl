@@ -1,19 +1,27 @@
 """Density-responsive ("actuated") signal controller: a stronger baseline.
 
-Nepal's first AI-enabled signals (Lalitpur, Kupondole to Jawalakhel, 2024)
-count vehicles with detectors and give the green to the heavier approach.
-This controller does the same thing in the simulator, from the same queue
-counts the DQN sees:
+Nepal's first AI-enabled signals (Lalitpur, Kupondole to Jawalakhel, 2024) count
+vehicles with detectors and give the green to the heavier approach. This controller
+does the same in the simulator:
 
   * keep the current green for at least `min_green` seconds;
-  * after that, if nobody is waiting on the other axis, keep the green;
-  * switch when the current axis has emptied (queue <= `gap_queue`), when the
-    other axis holds more than `ratio` times the current axis's queue, or when
-    `max_green` is reached and the other axis has waiting vehicles.
+  * after that, if nobody is on the other axis's approaches, keep the green;
+  * switch when the current axis has no vehicles left (count <= `gap_queue`), when the
+    other axis holds more than `ratio` times the current axis's vehicles, or when
+    `max_green` is reached and the other axis has vehicles waiting.
 
-It has the same act() interface as the learning agents, so the same evaluate()
-loop and metrics apply. Its few parameters should be tuned on selection seeds
-(not on the test seeds), exactly as the DQN's settings are.
+DEMAND IS COUNTED WITH ALL VEHICLES ON THE APPROACH (moving ones included), like a
+detector would, through `env.approach_vehicle_counts()` once the agent is attached to
+an environment. Counting only *halted* vehicles (the learning agents' queue feature)
+is wrong for this rule: while a lane has green its vehicles are moving, so its halted
+count is about zero and the controller gaps out almost immediately. The first version
+of this controller did exactly that and lost badly to the fixed timer (see
+results_tune_actuated); without an attached environment it still falls back to the
+halted-queue state so it can be unit tested.
+
+It has the same act() interface as the learning agents, so the same evaluate() loop
+and metrics apply. Its few parameters should be tuned on selection seeds (not on the
+test seeds), exactly as the DQN's settings are.
 """
 
 import numpy as np
@@ -26,12 +34,13 @@ _NS_NAMES = ("north", "south")
 class DensityActuatedAgent:
     def __init__(self, queue_idx, phase_idx, elapsed_idx, ns_cols, ew_cols, queue_scale: float,
                  elapsed_scale: float, min_green: float = 10.0, max_green: float = 60.0,
-                 gap_queue: float = 1.0, ratio: float = 1.5):
+                 gap_queue: float = 0.0, ratio: float = 1.5):
         self.queue_idx, self.phase_idx, self.elapsed_idx = queue_idx, phase_idx, elapsed_idx
         self.ns_cols, self.ew_cols = list(ns_cols), list(ew_cols)
         self.queue_scale, self.elapsed_scale = queue_scale, elapsed_scale
         self.min_green, self.max_green = float(min_green), float(max_green)
         self.gap_queue, self.ratio = float(gap_queue), float(ratio)
+        self.env = None
 
     @classmethod
     def from_config(cls, config: dict, **params) -> "DensityActuatedAgent":
@@ -53,12 +62,22 @@ class DensityActuatedAgent:
                    ns_cols=ns, ew_cols=ew, queue_scale=cfg["queue_scale"],
                    elapsed_scale=cfg["phase_elapsed_scale"], **params)
 
+    def attach(self, env) -> "DensityActuatedAgent":
+        """Give the controller detector-style counts from the environment (all vehicles on each approach)."""
+        self.env = env
+        return self
+
+    def _demand(self, s) -> np.ndarray:
+        if self.env is not None and hasattr(self.env, "approach_vehicle_counts"):
+            return np.asarray(self.env.approach_vehicle_counts(), dtype=np.float64)
+        return s[self.queue_idx:self.queue_idx + len(self.ns_cols) + len(self.ew_cols)] * self.queue_scale
+
     def act(self, state, greedy: bool = True) -> int:
         s = np.asarray(state, dtype=np.float64)
-        queues = s[self.queue_idx:self.queue_idx + len(self.ns_cols) + len(self.ew_cols)] * self.queue_scale
+        demand = self._demand(s)
         current = int(np.argmax(s[self.phase_idx:self.phase_idx + 2]))     # 0 = north-south green, 1 = east-west
         elapsed = s[self.elapsed_idx] * self.elapsed_scale
-        ns_q, ew_q = float(queues[self.ns_cols].sum()), float(queues[self.ew_cols].sum())
+        ns_q, ew_q = float(demand[self.ns_cols].sum()), float(demand[self.ew_cols].sum())
         cur_q, other_q = (ns_q, ew_q) if current == 0 else (ew_q, ns_q)
         other = 1 - current
 

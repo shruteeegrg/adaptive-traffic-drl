@@ -103,7 +103,10 @@ def build_parser() -> argparse.ArgumentParser:
     compare.add_argument("--episodes", type=int, default=100, help="Episodes per controller per scenario (default 100)")
     compare.add_argument("--seed-base", type=int, default=30000, help="First SUMO seed (default 30000, unused in training)")
     compare.add_argument("--threshold", type=float, default=0.05, help="Practical-significance threshold, fraction of the reference mean (default 0.05)")
-    compare.add_argument("--min-abs", type=float, default=2.0, help="Also require this absolute change in vehicles waiting (default 2)")
+    compare.add_argument("--min-abs", type=float, default=None,
+                         help="Also require this absolute change in the metric (default: 2 vehicles, or 1 s for avg_wait_per_vehicle)")
+    compare.add_argument("--metric", default="mean_total_waiting",
+                         help="Metric to test: mean_total_waiting (default), avg_wait_per_vehicle, throughput_per_hour, switches")
     compare.add_argument("--out-dir", default="results_compare")
 
     sub.add_parser("demo", help="Launch the interactive Streamlit demo app")
@@ -369,7 +372,7 @@ def _compare(args) -> int:
     scenarios = [x.strip() for x in args.scenarios.split(",") if x.strip()]
     summary, table = run_comparison(args.config, scenarios, args.controller, episodes=args.episodes,
                                     seed_base=args.seed_base, out_dir=args.out_dir, reference=args.reference,
-                                    threshold=args.threshold, min_abs=args.min_abs, log=print)
+                                    threshold=args.threshold, min_abs=args.min_abs, metric=args.metric, log=print)
     print()
     print(table)
     print(f"wrote {args.out_dir}/compare_summary.md, compare_summary.csv, compare_episodes.csv")
