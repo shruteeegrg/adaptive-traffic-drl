@@ -138,6 +138,33 @@ def test_actuated_counts_moving_vehicles_like_a_detector_when_attached():
     assert _actuated(min_green=10).attach(Env()).act(_state([0, 0, 3, 0], 0, 70)) == 1   # max green reached: switch
 
 
+def test_vehicles_state_feature_and_a_detector_aware_dqn_config():
+    from traffic_drl.env import features
+
+    cfg = features.state_config({"state": {"features": ["queue", "vehicles", "phase"], "queue_scale": 10, "vehicle_scale": 20}})
+    assert features.state_size(cfg, 4, 2) == 10
+    s = features.build_state(cfg, [1, 2, 3, 4], [0] * 4, 1, 0.0, 2, vehicles=[10, 20, 0, 5])
+    assert np.allclose(s, [0.1, 0.2, 0.3, 0.4, 0.5, 1.0, 0.0, 0.25, 0.0, 1.0])
+    traci_env.traci = FakeTraci()
+    env = traci_env.TraciEnv(os.path.join(ROOT, "configs", "dqn_v.yaml"))
+    state = env.reset()
+    assert env.state_size == len(state) == 15
+    assert np.allclose(state[4:8], 6 / 20)                         # FakeTraci reports 6 vehicles per approach
+    assert state[12:14].tolist() == [1.0, 0.0]                     # phase one-hot after queue, vehicles, waiting
+
+
+def test_actuated_uses_the_vehicles_in_the_state_when_there_is_no_environment():
+    a = DensityActuatedAgent.from_config(load_config(os.path.join(ROOT, "configs", "dqn_v.yaml")), min_green=10, ratio=1.5)
+    assert (a.queue_idx, a.vehicles_idx, a.phase_idx, a.elapsed_idx) == (0, 4, 12, 14)
+    s = np.zeros(15, dtype=np.float32)
+    s[4:8] = np.array([2, 8, 2, 8]) / 20                          # busy north-south, nothing halted
+    s[8:12] = 0
+    s[12] = 1.0                                                   # north-south has green
+    s[14] = 20 / 60                                               # for 20 s
+    s[2] = 3 / 20                                                 # a few halted on the west approach
+    assert a.act(s) == 0                                          # keeps the green: 16 vehicles vs 4
+
+
 def test_environment_exposes_detector_style_vehicle_counts():
     traci_env.traci = FakeTraci()
     env = traci_env.TraciEnv(CFG)

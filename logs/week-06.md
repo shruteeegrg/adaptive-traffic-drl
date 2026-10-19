@@ -220,3 +220,10 @@
 - The first density-responsive controller counted only HALTED vehicles. A lane with green has moving vehicles, so its halted count is about 0 and the controller gapped out as soon as `min_green` ended. Symptoms: `max_green` and `ratio` had no effect (identical results across them), 100 to 138 switches per episode against 41, and waiting 12 to 131 percent WORSE than the fixed timer on tidal and rush hour.
 - Fix: the controller is attached to the environment and counts all vehicles on each approach (`approach_vehicle_counts`, detector-style); the halted-queue fallback is kept only for unit tests. Tuning to be re-run.
 - Low traffic is a genuine win for adaptive control: wait per vehicle 11.0 s (fixed) vs 2.8 s, although vehicles waiting is tiny for both (1.5 vs 0.4), which is why the verdict rule has a per-metric absolute floor and `compare --metric avg_wait_per_vehicle` exists.
+
+## Density-responsive baseline after the fix (second tuning round, selection seeds 20000, 20 episodes; pasted from the run)
+
+- Best single setting for all scenarios: `min_green 10, max_green 40, ratio 4, gap 0`: tidal 7.3, rush hour 127.7, low traffic 0.2 vehicles waiting.
+- Best per scenario: tidal 7.2 (ratio 2.5), rush hour 125.2 (max green 90, ratio 4), low traffic 0.21. Best tuned fixed timers: tidal 115.0 (30 s), rush hour 136.2 (30 s), low traffic 0.81 (20 s).
+- A tuned detector rule beats the fixed timer on all three scenarios, including rush hour (about 8 to 10 percent), and beats the original DQN everywhere (DQN numbers are from different seeds: tidal 9.9, rush hour 140.8, low traffic 0.5; to be settled by `compare` on 100 fresh episodes).
+- Likely cause of the DQN's deficit: it sees only halted vehicles, the rule sees all vehicles on the approach. New state feature `vehicles` and `configs/dqn_v.yaml` remove that gap.

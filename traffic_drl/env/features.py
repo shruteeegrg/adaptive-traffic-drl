@@ -11,6 +11,7 @@ State features (choose/order in `state.features`):
   phase         one-hot of the currently active green     (n_actions)
   phase_elapsed seconds since the last phase switch       (1)
   backlog       vehicles waiting outside to enter         (1)
+  vehicles      all vehicles on each approach, moving ones included, as a detector counts   (n_approaches)
 Each group is divided by its scale so values sit near [0, 1], which
 keeps neural-net training stable.
 
@@ -33,6 +34,7 @@ DEFAULT_STATE = {
     "wait_scale": 1.0,
     "phase_elapsed_scale": 1.0,
     "backlog_scale": 1.0,
+    "vehicle_scale": 1.0,
 }
 DEFAULT_REWARD = {
     "queue_weight": 1.0,
@@ -41,7 +43,7 @@ DEFAULT_REWARD = {
     "switch_penalty": 0.0,
     "reward_scale": 1.0,
 }
-KNOWN_FEATURES = ("queue", "waiting_time", "phase", "phase_elapsed", "backlog")
+KNOWN_FEATURES = ("queue", "waiting_time", "phase", "phase_elapsed", "backlog", "vehicles")
 
 
 def state_config(config: dict) -> dict:
@@ -58,12 +60,12 @@ def reward_config(config: dict) -> dict:
 
 def state_size(cfg: dict, n_approaches: int, n_actions: int) -> int:
     sizes = {"queue": n_approaches, "waiting_time": n_approaches,
-             "phase": n_actions, "phase_elapsed": 1, "backlog": 1}
+             "phase": n_actions, "phase_elapsed": 1, "backlog": 1, "vehicles": n_approaches}
     return sum(sizes[f] for f in cfg["features"])
 
 
 def build_state(cfg: dict, queues, waits, action: int, phase_elapsed: float, n_actions: int,
-                backlog: float = 0.0) -> np.ndarray:
+                backlog: float = 0.0, vehicles=None) -> np.ndarray:
     parts = []
     for f in cfg["features"]:
         if f == "queue":
@@ -78,6 +80,9 @@ def build_state(cfg: dict, queues, waits, action: int, phase_elapsed: float, n_a
             parts.append(np.array([phase_elapsed / cfg["phase_elapsed_scale"]], dtype=np.float32))
         elif f == "backlog":
             parts.append(np.array([backlog / cfg["backlog_scale"]], dtype=np.float32))
+        elif f == "vehicles":
+            counts = np.zeros(len(queues)) if vehicles is None else np.asarray(vehicles)
+            parts.append(np.asarray(counts, dtype=np.float32) / cfg["vehicle_scale"])
     return np.concatenate(parts).astype(np.float32)
 
 

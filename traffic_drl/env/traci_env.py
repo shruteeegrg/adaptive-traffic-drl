@@ -255,8 +255,9 @@ class TraciEnv:
         backlog = (
             len(traci.simulation.getPendingVehicles()) if "backlog" in self.state_cfg["features"] else 0.0
         )
+        vehicles = self.approach_vehicle_counts() if "vehicles" in self.state_cfg["features"] else None
         return features.build_state(
-            self.state_cfg, queues, waits, self._action, self._phase_elapsed, self.n_actions, backlog
+            self.state_cfg, queues, waits, self._action, self._phase_elapsed, self.n_actions, backlog, vehicles
         )
 
     def close(self):
