@@ -41,6 +41,7 @@ class DQNAgent:
         target_sync_steps: int = 200,
         loss: str = "huber",
         seed: int = 0,
+        double_dqn: bool = False,
     ):
         if loss not in ("huber", "mse"):
             raise ValueError("loss must be 'huber' or 'mse'")
@@ -49,6 +50,7 @@ class DQNAgent:
         self.epsilon, self.epsilon_end, self.epsilon_decay = epsilon_start, epsilon_end, epsilon_decay
         self.batch_size, self.learn_start = batch_size, learn_start
         self.train_every, self.target_sync_steps = train_every, target_sync_steps
+        self.double_dqn = bool(double_dqn)   # choose the next action with the online net, score it with the target net
         self.loss_fn = huber_loss if loss == "huber" else mse_loss
 
         sizes = [state_dim, *hidden_sizes, n_actions]
@@ -93,7 +95,15 @@ class DQNAgent:
     def learn(self) -> float:
         s, a, r, s2, d = self.buffer.sample(self.batch_size)
         # Bellman target from the *target* network; terminal states don't bootstrap.
-        y = r + self.gamma * (1.0 - d) * self.target.forward(s2, cache=False).max(axis=1)
+        next_q = self.target.forward(s2, cache=False)
+        if self.double_dqn:
+            # Double DQN: the online network picks the action, the target network values it,
+            # which curbs the over-estimation of plain max-over-target (van Hasselt et al., 2016).
+            best = self.online.forward(s2, cache=False).argmax(axis=1)
+            bootstrap = next_q[np.arange(self.batch_size), best]
+        else:
+            bootstrap = next_q.max(axis=1)
+        y = r + self.gamma * (1.0 - d) * bootstrap
 
         pred = self.online.forward(s)
         rows = np.arange(self.batch_size)

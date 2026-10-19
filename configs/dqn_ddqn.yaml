@@ -1,0 +1,17 @@
+# Plain DQN against Double DQN (van Hasselt et al., 2016; cited in the literature review via Gu, 2020) on
+# rush hour, with the settings that worked best so far (gamma 0.99, switch penalty 5).
+# Run:
+#   traffic-drl sweep --config configs/dqn_ddqn.yaml --scenario configs/scenarios/rush_hour.yaml --out-dir results_sweep_ddqn
+extends: dqn.yaml
+name: intersection_dqn_ddqn
+
+sweep:
+  episodes: 120
+  eval_episodes: 2
+  seeds: [0, 1, 2, 3]
+  grid:
+    learning_rate: [0.0005]
+    target_sync_steps: [100]
+    epsilon_decay: [0.96]
+    gamma: [0.99]
+    double_dqn: [false, true]

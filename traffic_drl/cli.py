@@ -94,9 +94,17 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate.add_argument("--seed-base", type=int, default=10000,
                           help="First SUMO seed for evaluation episodes (use a fresh value to avoid seeds used for selection)")
 
-    compare = sub.add_parser("compare", help="Compare DQN agent vs. fixed-time baseline")
-    compare.add_argument("--config", required=True)
-    compare.add_argument("--scenarios", required=True, help="Comma-separated scenario names")
+    compare = sub.add_parser("compare", help="Compare controllers on scenarios with confidence intervals and t-tests")
+    compare.add_argument("--config", default="configs/dqn.yaml")
+    compare.add_argument("--scenarios", required=True, help="Comma-separated scenario names or YAML paths")
+    compare.add_argument("--controller", action="append", required=True, metavar="[NAME=]SPEC",
+                         help="fixed[:GREEN_S] | actuated[:min=10,max=60,gap=1,ratio=1.5] | dqn:CHECKPOINT; repeat for each controller")
+    compare.add_argument("--reference", help="Label of the controller the others are tested against (default: first)")
+    compare.add_argument("--episodes", type=int, default=100, help="Episodes per controller per scenario (default 100)")
+    compare.add_argument("--seed-base", type=int, default=30000, help="First SUMO seed (default 30000, unused in training)")
+    compare.add_argument("--threshold", type=float, default=0.05, help="Practical-significance threshold, fraction of the reference mean (default 0.05)")
+    compare.add_argument("--min-abs", type=float, default=2.0, help="Also require this absolute change in vehicles waiting (default 2)")
+    compare.add_argument("--out-dir", default="results_compare")
 
     sub.add_parser("demo", help="Launch the interactive Streamlit demo app")
 
@@ -355,6 +363,19 @@ def _sweep(args) -> int:
     return 0
 
 
+def _compare(args) -> int:
+    from traffic_drl.compare import run_comparison
+
+    scenarios = [x.strip() for x in args.scenarios.split(",") if x.strip()]
+    summary, table = run_comparison(args.config, scenarios, args.controller, episodes=args.episodes,
+                                    seed_base=args.seed_base, out_dir=args.out_dir, reference=args.reference,
+                                    threshold=args.threshold, min_abs=args.min_abs, log=print)
+    print()
+    print(table)
+    print(f"wrote {args.out_dir}/compare_summary.md, compare_summary.csv, compare_episodes.csv")
+    return 0
+
+
 def main(argv=None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -394,7 +415,7 @@ def main(argv=None) -> int:
     elif args.command == "evaluate":
         return _evaluate(args)
     elif args.command == "compare":
-        print(f"[stub] would compare config={args.config} scenarios={args.scenarios}")
+        return _compare(args)
     elif args.command == "demo":
         import subprocess
         from pathlib import Path
