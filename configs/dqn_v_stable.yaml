@@ -1,0 +1,28 @@
+# Same DQN as dqn_v.yaml (it sees all vehicles on each approach) with the training made steadier.
+# The first dqn_v sweeps showed policies that were excellent early (tidal waiting 7 at episode 10, as good as
+# the tuned density rule) and then got worse and bounced around from one evaluation to the next
+# (for example 7, 58, 44, 43, 52 ...). Three standard remedies, all on:
+#   soft target update (target_tau): the target network follows the online one smoothly, not in jumps
+#   gradient clipping (grad_clip): no single bad batch can wreck the network
+#   learning-rate decay (lr_decay): smaller steps as training goes on
+# and checkpoint selection uses 5 evaluation episodes instead of 2 (a noisy pick keeps a lucky one).
+#   traffic-drl sweep --config configs/dqn_v_stable.yaml --scenario configs/scenarios/tidal.yaml --out-dir results_sweep_vs_tidal
+#   traffic-drl sweep --config configs/dqn_v_stable.yaml --scenario configs/scenarios/rush_hour.yaml --out-dir results_sweep_vs_rush
+extends: dqn_v.yaml
+name: intersection_dqn_v_stable
+
+dqn:
+  gamma: 0.99
+  learning_rate: 0.0005
+  target_tau: 0.005
+  grad_clip: 5.0
+  lr_decay: 0.985
+  lr_min: 0.00005
+  eval_episodes: 5
+
+sweep:
+  episodes: 120
+  eval_episodes: 5
+  seeds: [0, 1, 2, 3]
+  grid:
+    gamma: [0.99]

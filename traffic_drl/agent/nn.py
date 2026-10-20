@@ -70,6 +70,12 @@ class MLP:
         """Flat list of parameter arrays (live references, W0, b0, W1, b1...)."""
         return [p for pair in zip(self.W, self.b) for p in pair]
 
+    def soft_update(self, other: "MLP", tau: float) -> None:
+        """Move this net's weights a fraction `tau` toward another net's (Polyak averaging):
+        a smoother alternative to the hard copy for the DQN target network."""
+        for mine, theirs in zip(self.parameters(), other.parameters()):
+            mine[...] = (1.0 - tau) * mine + tau * theirs
+
     def copy_from(self, other: "MLP") -> None:
         """Hard-copy another net's weights (DQN target-network sync)."""
         for mine, theirs in zip(self.parameters(), other.parameters()):

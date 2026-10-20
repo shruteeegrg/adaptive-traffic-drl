@@ -22,7 +22,7 @@ import json
 import os
 import statistics
 
-from traffic_drl.agent import DQNAgent, evaluate, train_agent
+from traffic_drl.agent import DQNAgent, evaluate, maybe_pretrain, train_agent
 
 METRIC_KEYS = ("reward", "mean_total_waiting", "mean_queue", "mean_backlog",
                "avg_wait_per_vehicle", "throughput_per_hour", "switches", "ns_green_fraction")
@@ -41,9 +41,12 @@ def _setting_id(setting: dict) -> str:
     return "_".join(f"{k}-{v}" for k, v in setting.items()) or "default"
 
 
+RANKING_SEED_BASE = 20_000     # seeds for the final score of each run (training evaluations use 10_000+)
+
+
 def run_sweep(env, config: dict, grid: dict, seeds, episodes: int, out_dir: str,
               max_steps: int = None, eval_every: int = None, eval_episodes: int = 2, final_eval_episodes: int = 3,
-              verbose: bool = True) -> list:
+              verbose: bool = True, make_teacher=None) -> list:
     """Run the sweep on an already-built env (so SUMO's single TraCI
     connection is shared and reset between runs). Returns the ranked
     summary rows."""
@@ -76,12 +79,18 @@ def run_sweep(env, config: dict, grid: dict, seeds, episodes: int, out_dir: str,
                 print(f"[{si}/{len(settings)}] {run_id}")
             history = {}
             try:
-                train_agent(env, agent, episodes, max_steps=max_steps, verbose=False,
+                pretrained = maybe_pretrain(env, agent, cfg, make_teacher=make_teacher)
+                train_agent(env, agent, episodes, max_steps=max_steps, verbose=False, eval_at_start=pretrained,
                             log_path=os.path.join(runs_dir, f"{run_id}.csv"),
                             eval_every=eval_every, eval_episodes=eval_episodes,
                             best_path=os.path.join(runs_dir, f"{run_id}_best.npz"), history=history)
                 _write_evals(history.get("evals", []), os.path.join(runs_dir, f"{run_id}_evals.csv"))
-                final = evaluate(env, agent, final_eval_episodes, max_steps=max_steps)
+                # Score the policy that would actually be used: the best checkpoint (picked on the periodic
+                # evaluation seeds), re-evaluated on DIFFERENT seeds so the pick is not graded on its own exam.
+                best_file = os.path.join(runs_dir, f"{run_id}_best.npz")
+                if history.get("best_episode") is not None and os.path.exists(best_file):
+                    agent.load(best_file)
+                final = evaluate(env, agent, final_eval_episodes, max_steps=max_steps, seed_base=RANKING_SEED_BASE)
             finally:
                 if reward_params:
                     env.reward_cfg.update(original_reward)   # never leak one setting's reward into the next

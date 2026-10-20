@@ -95,8 +95,62 @@ def _score(result: dict) -> float:
     return -result["mean_total_waiting"] if "mean_total_waiting" in result else result["reward"]
 
 
+def pretrain_from_teacher(env, agent, teacher, episodes: int, noise: float = 0.2, offline_steps: int = 0,
+                          epsilon_after: float = 0.1, max_steps: int = None, seed: int = 0, verbose: bool = False):
+    """Seed the DQN with a teacher controller's experience (Q-learning is off-policy, so it can learn from
+    anyone's transitions). The teacher drives `episodes` episodes, with a fraction `noise` of random actions so
+    the buffer also holds the consequences of poor choices; every transition goes through agent.update, then
+    `offline_steps` extra gradient steps fit the buffer. Exploration is then set to `epsilon_after`, ready for
+    ordinary training to improve on the teacher."""
+    import numpy as _np
+
+    rng = _np.random.default_rng(seed)
+    for ep in range(episodes):
+        state = env.reset()
+        if hasattr(teacher, "reset"):
+            teacher.reset()
+        steps = 0
+        while True:
+            action = int(rng.integers(agent.n_actions)) if rng.random() < noise else teacher.act(state, greedy=True)
+            next_state, reward, done, _ = env.step(action)
+            agent.update(state, action, reward, next_state, done)
+            state = next_state
+            steps += 1
+            if done or (max_steps and steps >= max_steps):
+                break
+        if verbose:
+            print(f"  teacher episode {ep + 1}/{episodes}: {steps} transitions")
+    if offline_steps:
+        agent.offline_learn(offline_steps)
+    agent.epsilon = epsilon_after
+    return agent
+
+
+def maybe_pretrain(env, agent, config: dict, verbose: bool = False, make_teacher=None) -> bool:
+    """Run the `dqn.pretrain` section of the config, if any. Returns True when a teacher was used.
+
+        pretrain: {teacher: {min: 10, max: 40, ratio: 4, gap: 0}, episodes: 20, noise: 0.2,
+                   offline_steps: 3000, epsilon_after: 0.1}
+    """
+    spec = config.get("dqn", {}).get("pretrain")
+    if not spec:
+        return False
+    if make_teacher is None:
+        from traffic_drl.baseline import DensityActuatedAgent
+
+        t = spec.get("teacher", {})
+        make_teacher = lambda: DensityActuatedAgent.from_config(   # noqa: E731
+            config, min_green=t.get("min", 10), max_green=t.get("max", 40),
+            ratio=t.get("ratio", 4), gap_queue=t.get("gap", 0)).attach(env)
+    pretrain_from_teacher(env, agent, make_teacher(), episodes=spec.get("episodes", 20), noise=spec.get("noise", 0.2),
+                          offline_steps=spec.get("offline_steps", 0), epsilon_after=spec.get("epsilon_after", 0.1),
+                          seed=config.get("dqn", {}).get("seed", 0), verbose=verbose)
+    return True
+
+
 def train_agent(env, agent, episodes: int, max_steps: int = None, log_path: str = None, verbose: bool = True,
-                eval_every: int = None, eval_episodes: int = 2, best_path: str = None, history: dict = None):
+                eval_every: int = None, eval_episodes: int = 2, best_path: str = None, history: dict = None,
+                eval_at_start: bool = False):
     """Train any agent with act/update/decay_epsilon (QTableAgent or
     DQNAgent) for `episodes` episodes; returns the per-episode reward list
     and, if `log_path` is given, writes it as CSV (episode, reward,
@@ -110,6 +164,15 @@ def train_agent(env, agent, episodes: int, max_steps: int = None, log_path: str 
     filled with best_score / best_episode / evals."""
     best_score, best_episode, evals = float("-inf"), None, []
     rewards, epsilons, losses, metrics = [], [], [], []
+    if eval_at_start and eval_every:        # e.g. the policy just distilled from a teacher: a candidate "best" too
+        result = evaluate(env, agent, eval_episodes, max_steps=max_steps)
+        evals.append({"episode": 0, **result})
+        best_score, best_episode = _score(result), 0
+        if best_path:
+            os.makedirs(os.path.dirname(best_path) or ".", exist_ok=True)
+            agent.save(best_path)
+        if verbose:
+            print("  eval @ episode 0: " + "  ".join(f"{k}={v:.2f}" for k, v in result.items() if "/" not in k))
     for ep in range(episodes):
         rewards.append(run_episode(env, agent, train=True, max_steps=max_steps))
         epsilons.append(agent.epsilon)

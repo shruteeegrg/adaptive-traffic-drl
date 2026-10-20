@@ -1,0 +1,18 @@
+# dqn_v_stable.yaml plus a teacher: before learning on its own, the DQN is seeded with the experience of the
+# tuned density-responsive rule (min green 10 s, max green 40 s, ratio 4), 20 episodes with 20 percent random
+# actions so the buffer also shows what bad choices cost, then 4000 extra gradient steps on that buffer.
+# Q-learning is off-policy, so it can learn from the teacher's transitions; ordinary training (low exploration,
+# 0.1) then tries to improve on the teacher's own objective, vehicles waiting. The seeded policy is evaluated
+# before training starts and kept as a best-checkpoint candidate.
+#   traffic-drl sweep --config configs/dqn_v_teacher.yaml --scenario configs/scenarios/tidal.yaml --out-dir results_sweep_vt_tidal
+#   traffic-drl sweep --config configs/dqn_v_teacher.yaml --scenario configs/scenarios/rush_hour.yaml --out-dir results_sweep_vt_rush
+extends: dqn_v_stable.yaml
+name: intersection_dqn_v_teacher
+
+dqn:
+  pretrain:
+    teacher: {min: 10, max: 40, ratio: 4, gap: 0}
+    episodes: 20
+    noise: 0.2
+    offline_steps: 4000
+    epsilon_after: 0.1

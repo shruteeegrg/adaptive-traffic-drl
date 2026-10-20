@@ -227,3 +227,23 @@
 - Best per scenario: tidal 7.2 (ratio 2.5), rush hour 125.2 (max green 90, ratio 4), low traffic 0.21. Best tuned fixed timers: tidal 115.0 (30 s), rush hour 136.2 (30 s), low traffic 0.81 (20 s).
 - A tuned detector rule beats the fixed timer on all three scenarios, including rush hour (about 8 to 10 percent), and beats the original DQN everywhere (DQN numbers are from different seeds: tidal 9.9, rush hour 140.8, low traffic 0.5; to be settled by `compare` on 100 fresh episodes).
 - Likely cause of the DQN's deficit: it sees only halted vehicles, the rule sees all vehicles on the approach. New state feature `vehicles` and `configs/dqn_v.yaml` remove that gap.
+
+## First definitive comparison (`results_compare_v1`: 100 episodes per cell, fresh seeds from 30000, same traffic for every controller)
+
+Vehicles waiting, mean +- 95% CI (verdict needs p < 0.05, at least 5 percent and 2 vehicles):
+
+| Scenario | Fixed 40 s | Fixed 30 s | Density rule (min 10, max 40, ratio 4) | DQN tidal | DQN rush | DQN mixed |
+|---|---|---|---|---|---|---|
+| Tidal | 114.0 | 113.7 (tie) | **7.2** (-94%) | 10.1 (-91%) | 130.8 (+15%) | 60.4 (-47%) |
+| Rush hour | 138.3 | 134.8 (small) | **126.6** (-8.5%, better) | 201.2 (+46%) | 139.8 (+1%, small) | 216.0 (+56%) |
+| Low traffic | 1.5 | 1.2 | 0.2 (wait per vehicle 1.6 s vs 11.0 s) | 18.6 (+1148%) | 53.8 (+3507%, 1 switch) | 0.5 |
+
+- The tuned density rule beats the fixed timer everywhere and beats every DQN checkpoint in every scenario.
+- The generalisation test promised in the contextual report (trained on rush hour, tested on low traffic) FAILS: the rush-hour DQN almost never switches (1 switch per episode), so the cross street starves.
+
+## DQN with detector-style input (`dqn_v.yaml`), 120 episodes, 4 seeds, plain vs Double DQN
+
+- Final-policy waiting is worse than the best checkpoints and bounces from one evaluation to the next (tidal seed 0: 7, 58, 44, 43, 52, 56 ...; rush hour seed 2: 343, 171, 160, 161, 210, 235, 389 ...). Several runs were as good as the rule at episode 10 (tidal 7.1) and then degraded.
+- Double DQN: no consistent benefit (tidal mean 43 vs 54, rush hour 198 vs 165, both with large spread).
+- Diagnosis: the input is no longer the limit, training stability is. Next: soft target update, gradient clipping, learning-rate decay, 5-episode checkpoint selection (`dqn_v_stable.yaml`) and seeding the replay buffer with the density rule's experience (`dqn_v_teacher.yaml`).
+- Sweeps now score each run's BEST checkpoint on fresh ranking seeds (20000s), not the last policy.

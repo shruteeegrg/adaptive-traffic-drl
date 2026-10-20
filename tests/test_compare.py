@@ -256,6 +256,22 @@ def test_compare_runs_controllers_on_a_scenario_and_writes_reports():
         assert len(eps) == 3 * 3 and {e["scenario"] for e in eps} == {"tidal"}
 
 
+def test_compare_lets_each_dqn_bring_its_own_state_config():
+    traci_env.traci = FakeTraci()
+    with tempfile.TemporaryDirectory() as d:
+        old_cfg, new_cfg = CFG, os.path.join(ROOT, "configs", "dqn_v.yaml")
+        paths = {}
+        for name, path in (("old", old_cfg), ("new", new_cfg)):
+            env = traci_env.TraciEnv(path)
+            paths[name] = os.path.join(d, f"{name}.npz")
+            DQNAgent.from_config(load_config(path), state_dim=env.state_size).save(paths[name])
+        summary, _ = run_comparison(
+            CFG, [os.path.join(ROOT, "configs", "scenarios", "tidal.yaml")],
+            ["fixed", f"old=dqn:{paths['old']}", f"new=dqn:{paths['new']}@{new_cfg}"], episodes=2,
+            out_dir=d, env_factory=lambda c, sc: traci_env.TraciEnv(c, scenario=sc), log=lambda *a: None)
+        assert {r["controller"] for r in summary} == {"fixed", "old", "new"}
+
+
 def test_compare_command_is_wired_into_the_cli():
     from traffic_drl import cli
 

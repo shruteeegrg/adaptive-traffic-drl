@@ -16,8 +16,9 @@ Cohen's d, and a verdict that needs BOTH statistical and practical significance:
   small            p < 0.05 but the change is below the practical threshold
   tie              not significant
 
-Controller specs:  fixed[:GREEN_SECONDS]   actuated[:min=10,max=60,gap=1,ratio=1.5]   dqn:PATH
-and an optional label:  NAME=SPEC
+Controller specs:  fixed[:GREEN_SECONDS]   actuated[:min=10,max=60,gap=0,ratio=4]   dqn:PATH[@CONFIG]
+and an optional label:  NAME=SPEC.  A DQN trained with a different state design (for example the 15-input
+configs/dqn_v.yaml) is given its own config after an @:  v=dqn:checkpoints/v.npz@configs/dqn_v.yaml
 """
 
 import csv
@@ -99,7 +100,6 @@ def run_comparison(config_path, scenarios, controllers, episodes=100, seed_base=
         from traffic_drl.env import TraciEnv
 
         env_factory = lambda cfg, sc: TraciEnv(cfg, scenario=sc)   # noqa: E731
-    config = load_config(config_path)
     specs = [parse_controller(c) for c in controllers]
     labels = [s[0] for s in specs]
     if len(set(labels)) != len(labels):
@@ -117,9 +117,11 @@ def run_comparison(config_path, scenarios, controllers, episodes=100, seed_base=
         sc_name = os.path.splitext(os.path.basename(sc_path))[0]
         results = {}
         for label, kind, arg in specs:
-            env = env_factory(config_path, sc_path)
+            arg, _, cfg_override = arg.partition("@") if kind == "dqn" else (arg, "", "")
+            ctrl_cfg_path = cfg_override or config_path          # a DQN trained with another state design brings its config
+            env = env_factory(ctrl_cfg_path, sc_path)
             try:
-                agent = build_agent(kind, arg, config, env)
+                agent = build_agent(kind, arg, load_config(ctrl_cfg_path), env)
                 runs = []
                 for _ in range(episodes):
                     if hasattr(agent, "reset"):

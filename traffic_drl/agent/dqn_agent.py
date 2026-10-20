@@ -20,7 +20,16 @@ from traffic_drl.agent.replay_buffer import ReplayBuffer
 
 # Keys in the `dqn:` config section that belong to the training loop or
 # to other consumers, not to the agent constructor.
-_LOOP_KEYS = ("episodes", "max_steps", "eval_every")
+_LOOP_KEYS = ("episodes", "max_steps", "eval_every", "eval_episodes", "pretrain")
+
+
+def clip_by_global_norm(dW, db, max_norm: float):
+    """Scale the gradient so its global L2 norm is at most `max_norm` (guards against rare huge updates)."""
+    total = float(np.sqrt(sum(float((g.astype(np.float64) ** 2).sum()) for g in (*dW, *db))))
+    if total <= max_norm or total == 0.0:
+        return dW, db
+    scale = max_norm / total
+    return [g * scale for g in dW], [g * scale for g in db]
 
 
 class DQNAgent:
@@ -42,6 +51,10 @@ class DQNAgent:
         loss: str = "huber",
         seed: int = 0,
         double_dqn: bool = False,
+        target_tau: float = 0.0,
+        grad_clip: float = 0.0,
+        lr_decay: float = 1.0,
+        lr_min: float = 1e-5,
     ):
         if loss not in ("huber", "mse"):
             raise ValueError("loss must be 'huber' or 'mse'")
@@ -50,6 +63,9 @@ class DQNAgent:
         self.epsilon, self.epsilon_end, self.epsilon_decay = epsilon_start, epsilon_end, epsilon_decay
         self.batch_size, self.learn_start = batch_size, learn_start
         self.train_every, self.target_sync_steps = train_every, target_sync_steps
+        self.target_tau = float(target_tau)    # > 0: soft target update every gradient step instead of a hard copy
+        self.grad_clip = float(grad_clip)      # > 0: clip the gradient's global norm
+        self.lr_decay, self.lr_min = float(lr_decay), float(lr_min)   # learning rate x lr_decay after every episode
         self.double_dqn = bool(double_dqn)   # choose the next action with the online net, score it with the target net
         self.loss_fn = huber_loss if loss == "huber" else mse_loss
 
@@ -87,10 +103,28 @@ class DQNAgent:
     def update(self, state, action, reward, next_state, done) -> None:
         self.buffer.add(state, action, reward, next_state, done)
         self.steps += 1
+        learned = False
         if len(self.buffer) >= max(self.learn_start, self.batch_size) and self.steps % self.train_every == 0:
             self.learn()
-        if self.steps % self.target_sync_steps == 0:
+            learned = True
+        self._sync_target(learned)
+
+    def _sync_target(self, learned: bool) -> None:
+        if self.target_tau > 0:
+            if learned:
+                self.target.soft_update(self.online, self.target_tau)
+        elif self.steps % self.target_sync_steps == 0:
             self.target.copy_from(self.online)
+
+    def offline_learn(self, n_steps: int) -> None:
+        """Extra gradient steps on what is already in the replay buffer (used after seeding it with a
+        teacher's transitions)."""
+        if len(self.buffer) < self.batch_size:
+            return
+        for _ in range(n_steps):
+            self.learn()
+            self.steps += 1
+            self._sync_target(True)
 
     def learn(self) -> float:
         s, a, r, s2, d = self.buffer.sample(self.batch_size)
@@ -112,7 +146,10 @@ class DQNAgent:
         mask = np.zeros_like(pred)
         mask[rows, a] = 1.0  # loss only on the action actually taken
         loss, grad = self.loss_fn(pred, target, mask)
-        self.optimizer.step(*self.online.backward(grad))
+        dW, db = self.online.backward(grad)
+        if self.grad_clip > 0:
+            dW, db = clip_by_global_norm(dW, db, self.grad_clip)
+        self.optimizer.step(dW, db)
 
         self.learn_steps += 1
         self.last_loss = loss
@@ -128,6 +165,8 @@ class DQNAgent:
 
     def decay_epsilon(self) -> None:
         self.epsilon = max(self.epsilon_end, self.epsilon * self.epsilon_decay)
+        if self.lr_decay != 1.0:
+            self.optimizer.lr = max(self.lr_min, self.optimizer.lr * self.lr_decay)
 
     def save(self, path: str) -> None:
         self.online.save(path)

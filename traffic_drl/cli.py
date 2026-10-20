@@ -134,7 +134,7 @@ def _toy_env(agent: str, seed: int):
 def _train(args) -> int:
     import os
 
-    from traffic_drl.agent import DQNAgent, QTableAgent, train_agent
+    from traffic_drl.agent import DQNAgent, QTableAgent, maybe_pretrain, train_agent
     from traffic_drl.config import load_config
     from traffic_drl.viz import plot_reward_curve
 
@@ -170,8 +170,10 @@ def _train(args) -> int:
     best_path = os.path.join(args.out_dir, f"{stem}_best{ext}") if eval_every else None
     history = {}
     try:
+        pretrained = args.agent == "dqn" and args.env != "toy" and maybe_pretrain(env, agent, config, verbose=True)
         train_agent(env, agent, episodes, max_steps=params.get("max_steps"), log_path=log_path,
-                    eval_every=eval_every, best_path=best_path, history=history)
+                    eval_every=eval_every, eval_episodes=params.get("eval_episodes", 2), best_path=best_path,
+                    history=history, eval_at_start=pretrained)
     finally:
         env.close()
     if best_path:
