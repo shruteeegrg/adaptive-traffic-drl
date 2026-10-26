@@ -1,8 +1,11 @@
-# rush_hour demand (900 veh/h per approach) with a Kathmandu fleet and turning vehicles.
+# Near-capacity even demand (400 veh/h per approach) with a Kathmandu fleet and turns; the Kathmandu counterpart of rush_hour.
 # Kathmandu-style vehicle mix (62% motorcycles, 22% cars, 8% buses, 8% light goods) with 15% left and
 # 15% right turners per approach. The mix is an ASSUMPTION taken from the project plan (MOPIT 2023);
-# verify against the source before citing it. Regenerate with:
-#   python scripts/generate_routes.py --out configs/scenarios/rush_hour_kt.rou.xml --vehs-per-hour 900 --fleet kathmandu --turns 0.15 0.15
+# verify against the source before citing it. The demand level is set from the measured capacity of this
+# single-lane junction with turns (about 1,800 veh/h in total, results_compare_kt_calib), not from corridor
+# counts: at 900 and 1100 per approach the junction was so overloaded that no controller made a difference.
+# Regenerate with:
+#   python scripts/generate_routes.py --out configs/scenarios/rush_hour_kt.rou.xml --vehs-per-hour 400 --fleet kathmandu --turns 0.15 0.15
 name: rush_hour_kt
-description: rush_hour demand (900 veh/h per approach) with a Kathmandu fleet and turning vehicles.
+description: Near-capacity even demand (400 veh/h per approach) with a Kathmandu fleet and turns; the Kathmandu counterpart of rush_hour.
 route_file: rush_hour_kt.rou.xml

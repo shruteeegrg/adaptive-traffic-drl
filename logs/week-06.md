@@ -270,3 +270,8 @@ Vehicles waiting, mean +- 95% CI (verdict needs p < 0.05, at least 5 percent and
 - The tuned rule equals the fixed timer exactly there (432.7 and 631.1, 41 switches): with demand on both axes it only switches at max_green.
 - Where the junction is not saturated the rule works: tidal_kt -20% (better), low_traffic_kt wait per vehicle 16.1 s -> 3.7 s.
 - Day 2 gate: the 900 and 1100 demand levels were a bad calibration, not a meaningful peak. Added kt_load_300/400/500/600 around the measured capacity, and two diagnostics (diag_fleet_only_900, diag_turns_only_900) to separate the effect of the fleet from that of turns.
+
+## Capacity calibration (results_compare_kt_calib, 10 episodes, fixed vs tuned rule)
+- Turns are what cut the capacity, not the fleet: cars straight 3025 veh/h, mixed fleet straight 3232, cars with 15%+15% turns 1650, fleet with turns about 1820.
+- With turns, load 300/400/500/600 per approach: waiting fixed 5.0/11.5/66.6/148.8, rule 3.4/8.3/65.6/143.3. The rule helps at 300 and 400, ties at 500 and above. Junction capacity is about 1,800 veh/h in total.
+- rush_hour_kt is now 400 per approach and kathmandu_peak 500 (mildly oversaturated). tidal_kt (1100/300) stays: the rule is 20% better than fixed there, so controllers differ. kt_load_* stay as the calibration curve.

@@ -1,0 +1,13 @@
+# The DQfD recipe (dqn_v_dqfd.yaml) for the Kathmandu-style scenarios: Double DQN only, 4 seeds. The teacher is
+# the same tuned density rule (tuned on the cars-only scenarios; its parameters are not re-tuned here, which
+# favours nothing but the baseline and is stated as a limitation).
+#   traffic-drl sweep --config configs/dqn_v_dqfd_kt.yaml --scenario configs/scenarios/tidal_kt.yaml --out-dir results_sweep_vk_tidal
+#   traffic-drl sweep --config configs/dqn_v_dqfd_kt.yaml --scenario configs/scenarios/rush_hour_kt.yaml --out-dir results_sweep_vk_rush
+#   traffic-drl sweep --config configs/dqn_v_dqfd_kt.yaml --scenario configs/scenarios/kathmandu_peak.yaml --out-dir results_sweep_vk_peak
+extends: dqn_v_dqfd.yaml
+name: intersection_dqn_v_dqfd_kt
+
+sweep:
+  grid:
+    gamma: [0.99]
+    double_dqn: [true]

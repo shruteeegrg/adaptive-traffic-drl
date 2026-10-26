@@ -97,8 +97,8 @@ def test_fleet_shares_sum_to_one_and_types_are_used():
 
 
 def test_kathmandu_scenarios_load_and_match_generator():
-    expect = {"rush_hour_kt": dict(vehs_per_hour=900, tidal=None), "low_traffic_kt": dict(vehs_per_hour=120, tidal=None),
-              "kathmandu_peak": dict(vehs_per_hour=1100, tidal=None), "tidal_kt": dict(vehs_per_hour=0, tidal=[1100, 300])}
+    expect = {"rush_hour_kt": dict(vehs_per_hour=400, tidal=None), "low_traffic_kt": dict(vehs_per_hour=120, tidal=None),
+              "kathmandu_peak": dict(vehs_per_hour=500, tidal=None), "tidal_kt": dict(vehs_per_hour=0, tidal=[1100, 300])}
     for name, kw in expect.items():
         scen = load_scenario(os.path.join(ROOT, "configs", "scenarios", f"{name}.yaml"))
         text = open(scen["route_file"]).read()

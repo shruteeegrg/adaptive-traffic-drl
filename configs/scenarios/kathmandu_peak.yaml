@@ -1,8 +1,11 @@
-# Heavy even peak (1100 veh/h per approach, about 4400 veh/h through the junction) with a Kathmandu fleet and turns. The level is an assumption chosen to saturate a single-lane junction, not a measured value.
+# Mildly oversaturated even demand (500 veh/h per approach, junction capacity is about 450) with a Kathmandu fleet and turns.
 # Kathmandu-style vehicle mix (62% motorcycles, 22% cars, 8% buses, 8% light goods) with 15% left and
 # 15% right turners per approach. The mix is an ASSUMPTION taken from the project plan (MOPIT 2023);
-# verify against the source before citing it. Regenerate with:
-#   python scripts/generate_routes.py --out configs/scenarios/kathmandu_peak.rou.xml --vehs-per-hour 1100 --fleet kathmandu --turns 0.15 0.15
+# verify against the source before citing it. The demand level is set from the measured capacity of this
+# single-lane junction with turns (about 1,800 veh/h in total, results_compare_kt_calib), not from corridor
+# counts: at 900 and 1100 per approach the junction was so overloaded that no controller made a difference.
+# Regenerate with:
+#   python scripts/generate_routes.py --out configs/scenarios/kathmandu_peak.rou.xml --vehs-per-hour 500 --fleet kathmandu --turns 0.15 0.15
 name: kathmandu_peak
-description: Heavy even peak (1100 veh/h per approach, about 4400 veh/h through the junction) with a Kathmandu fleet and turns. The level is an assumption chosen to saturate a single-lane junction, not a measured value.
+description: Mildly oversaturated even demand (500 veh/h per approach, junction capacity is about 450) with a Kathmandu fleet and turns.
 route_file: kathmandu_peak.rou.xml

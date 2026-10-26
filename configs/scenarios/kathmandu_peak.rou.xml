@@ -18,16 +18,16 @@
     <route id="north_south_left" edges="B2A1 A1B1"/>
     <route id="south_north_right" edges="B4A1 A1B1"/>
     <route id="south_north_left" edges="B4A1 A1B3"/>
-    <flow id="flow_east_west" type="kt" route="east_west" begin="0" end="3600" vehsPerHour="770"/>
-    <flow id="flow_east_west_left" type="kt" route="east_west_left" begin="0" end="3600" vehsPerHour="165"/>
-    <flow id="flow_east_west_right" type="kt" route="east_west_right" begin="0" end="3600" vehsPerHour="165"/>
-    <flow id="flow_west_east" type="kt" route="west_east" begin="0" end="3600" vehsPerHour="770"/>
-    <flow id="flow_west_east_left" type="kt" route="west_east_left" begin="0" end="3600" vehsPerHour="165"/>
-    <flow id="flow_west_east_right" type="kt" route="west_east_right" begin="0" end="3600" vehsPerHour="165"/>
-    <flow id="flow_north_south" type="kt" route="north_south" begin="0" end="3600" vehsPerHour="770"/>
-    <flow id="flow_north_south_left" type="kt" route="north_south_left" begin="0" end="3600" vehsPerHour="165"/>
-    <flow id="flow_north_south_right" type="kt" route="north_south_right" begin="0" end="3600" vehsPerHour="165"/>
-    <flow id="flow_south_north" type="kt" route="south_north" begin="0" end="3600" vehsPerHour="770"/>
-    <flow id="flow_south_north_left" type="kt" route="south_north_left" begin="0" end="3600" vehsPerHour="165"/>
-    <flow id="flow_south_north_right" type="kt" route="south_north_right" begin="0" end="3600" vehsPerHour="165"/>
+    <flow id="flow_east_west" type="kt" route="east_west" begin="0" end="3600" vehsPerHour="350"/>
+    <flow id="flow_east_west_left" type="kt" route="east_west_left" begin="0" end="3600" vehsPerHour="75"/>
+    <flow id="flow_east_west_right" type="kt" route="east_west_right" begin="0" end="3600" vehsPerHour="75"/>
+    <flow id="flow_west_east" type="kt" route="west_east" begin="0" end="3600" vehsPerHour="350"/>
+    <flow id="flow_west_east_left" type="kt" route="west_east_left" begin="0" end="3600" vehsPerHour="75"/>
+    <flow id="flow_west_east_right" type="kt" route="west_east_right" begin="0" end="3600" vehsPerHour="75"/>
+    <flow id="flow_north_south" type="kt" route="north_south" begin="0" end="3600" vehsPerHour="350"/>
+    <flow id="flow_north_south_left" type="kt" route="north_south_left" begin="0" end="3600" vehsPerHour="75"/>
+    <flow id="flow_north_south_right" type="kt" route="north_south_right" begin="0" end="3600" vehsPerHour="75"/>
+    <flow id="flow_south_north" type="kt" route="south_north" begin="0" end="3600" vehsPerHour="350"/>
+    <flow id="flow_south_north_left" type="kt" route="south_north_left" begin="0" end="3600" vehsPerHour="75"/>
+    <flow id="flow_south_north_right" type="kt" route="south_north_right" begin="0" end="3600" vehsPerHour="75"/>
 </routes>
