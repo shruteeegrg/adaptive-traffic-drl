@@ -1,0 +1,6 @@
+# Even demand (600 veh/h per approach) with a Kathmandu fleet and 15% left and 15% right turners. Chosen around the junction's measured capacity of about 1830 veh/h (about 460 per approach) in this setup.
+# Regenerate with:
+#   python scripts/generate_routes.py --out configs/scenarios/kt_load_600.rou.xml --vehs-per-hour 600 --fleet kathmandu --turns 0.15 0.15
+name: kt_load_600
+description: Even demand (600 veh/h per approach) with a Kathmandu fleet and 15% left and 15% right turners. Chosen around the junction's measured capacity of about 1830 veh/h (about 460 per approach) in this setup.
+route_file: kt_load_600.rou.xml

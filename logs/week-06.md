@@ -264,3 +264,9 @@ Vehicles waiting, mean +- 95% CI (verdict needs p < 0.05, at least 5 percent and
 - Tidal: plain 7.2 / 7.5 / 7.0 / 6.7, Double 6.9 / 6.8 / 6.7 / 6.3 (tuned density rule 7.3 on the same seeds; stable+teacher without the frozen buffer was 12 to 37).
 - Rush hour: plain 121.9 / 123.8 / 122.3 / 120.8, Double 125.5 / 122.5 / 116.2 / 120.4 (rule 127.7, fixed about 138).
 - All 16 runs are at or below the rule on selection seeds. Not yet tested on the 30000 seeds with 100 episodes.
+
+## Kathmandu scenario check (results_compare_kt, 20 episodes, fixed vs fixed30 vs tuned rule)
+- rush_hour_kt (900/approach) and kathmandu_peak (1100/approach) discharged almost the same flow (1823 and 1829 veh/h), against 3025 veh/h for the cars-only rush_hour at the same 900. With turns and the mixed fleet the single-lane junction saturates at about 1830 veh/h in total (about 460 per approach). Both scenarios are far over capacity, so waiting is mostly backlog and the controller barely matters.
+- The tuned rule equals the fixed timer exactly there (432.7 and 631.1, 41 switches): with demand on both axes it only switches at max_green.
+- Where the junction is not saturated the rule works: tidal_kt -20% (better), low_traffic_kt wait per vehicle 16.1 s -> 3.7 s.
+- Day 2 gate: the 900 and 1100 demand levels were a bad calibration, not a meaningful peak. Added kt_load_300/400/500/600 around the measured capacity, and two diagnostics (diag_fleet_only_900, diag_turns_only_900) to separate the effect of the fleet from that of turns.

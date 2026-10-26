@@ -1,0 +1,6 @@
+# Diagnostic - rush_hour demand (900 per approach) with cars only and 15% left and 15% right turners, to separate the effect of turns from that of the fleet.
+# Regenerate with:
+#   python scripts/generate_routes.py --out configs/scenarios/diag_turns_only_900.rou.xml --vehs-per-hour 900 --turns 0.15 0.15
+name: diag_turns_only_900
+description: Diagnostic - rush_hour demand (900 per approach) with cars only and 15% left and 15% right turners, to separate the effect of turns from that of the fleet.
+route_file: diag_turns_only_900.rou.xml

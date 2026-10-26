@@ -108,6 +108,22 @@ def test_kathmandu_scenarios_load_and_match_generator():
         assert "vTypeDistribution" in text and 'id="north_south_left"' in text, name
 
 
+def test_calibration_and_diagnostic_scenarios_match_generator():
+    cases = {f"kt_load_{n}": dict(vehs_per_hour=n, fleet="kathmandu", turns=[0.15, 0.15]) for n in (300, 400, 500, 600)}
+    cases["diag_fleet_only_900"] = dict(vehs_per_hour=900, fleet="kathmandu", turns=None)
+    cases["diag_turns_only_900"] = dict(vehs_per_hour=900, fleet=None, turns=[0.15, 0.15])
+    for name, kw in cases.items():
+        scen = load_scenario(os.path.join(ROOT, "configs", "scenarios", f"{name}.yaml"))
+        text = open(scen["route_file"]).read()
+        want = gen.build_flows(Namespace(tidal=None, end=3600, period=900, **kw))
+        assert _rates(text_flows(text)) == _rates(want), name
+        assert ("vTypeDistribution" in text) == bool(kw["fleet"]) and ("_left" in text) == bool(kw["turns"]), name
+
+
+def text_flows(text):
+    return [l for l in text.splitlines() if "<flow" in l]
+
+
 def _pool_module():
     spec = importlib.util.spec_from_file_location("make_scenario_pool", os.path.join(ROOT, "scripts", "make_scenario_pool.py"))
     mod = importlib.util.module_from_spec(spec)

@@ -1,0 +1,6 @@
+# Diagnostic - rush_hour demand (900 per approach) with the Kathmandu fleet but straight-only movements, to separate the effect of the fleet from that of turns.
+# Regenerate with:
+#   python scripts/generate_routes.py --out configs/scenarios/diag_fleet_only_900.rou.xml --vehs-per-hour 900 --fleet kathmandu
+name: diag_fleet_only_900
+description: Diagnostic - rush_hour demand (900 per approach) with the Kathmandu fleet but straight-only movements, to separate the effect of the fleet from that of turns.
+route_file: diag_fleet_only_900.rou.xml
