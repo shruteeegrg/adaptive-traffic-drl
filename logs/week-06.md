@@ -259,3 +259,8 @@ Vehicles waiting, mean +- 95% CI (verdict needs p < 0.05, at least 5 percent and
 - New scenarios: `rush_hour_kt` (900/approach), `low_traffic_kt` (120), `tidal_kt` (1100/300, flips every 900 s), `kathmandu_peak` (1100 even, assumed saturation level). All with 15% left and 15% right turners.
 - The fleet shares come from the project plan (MOPIT 2023) and are assumptions until verified against the source. Motorcycles still queue single file (no sublane model), so they take less road but do not filter: a stated limitation.
 - Not yet checked in real SUMO: whether turning vehicles block the single lane (left turners yield to oncoming traffic on the permissive green) and whether all vehicles complete their trips.
+
+## DQfD sweeps (results_sweep_vd_tidal, results_sweep_vd_rush), best checkpoint on selection seeds 20000, mean total waiting
+- Tidal: plain 7.2 / 7.5 / 7.0 / 6.7, Double 6.9 / 6.8 / 6.7 / 6.3 (tuned density rule 7.3 on the same seeds; stable+teacher without the frozen buffer was 12 to 37).
+- Rush hour: plain 121.9 / 123.8 / 122.3 / 120.8, Double 125.5 / 122.5 / 116.2 / 120.4 (rule 127.7, fixed about 138).
+- All 16 runs are at or below the rule on selection seeds. Not yet tested on the 30000 seeds with 100 episodes.
