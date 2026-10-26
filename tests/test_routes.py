@@ -108,6 +108,57 @@ def test_kathmandu_scenarios_load_and_match_generator():
         assert "vTypeDistribution" in text and 'id="north_south_left"' in text, name
 
 
+def _pool_module():
+    spec = importlib.util.spec_from_file_location("make_scenario_pool", os.path.join(ROOT, "scripts", "make_scenario_pool.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_axis_demand_swaps_only_with_a_short_period():
+    ns = Namespace(tidal=None, vehs_per_hour=0, end=1800, period=900, axis_demand=[700, 100], turns=None, fleet=None)
+    r = _rates(gen.build_flows(ns))
+    assert r[("north_south", 0.0)] == 700 and r[("east_west", 0.0)] == 100
+    assert r[("north_south", 900.0)] == 100 and r[("east_west", 900.0)] == 700
+    ns.period = 1800
+    r = _rates(gen.build_flows(ns))
+    assert len(r) == 4 and r[("north_south", 0.0)] == 700 and r[("west_east", 0.0)] == 100
+
+
+def test_pool_is_deterministic_and_stratified():
+    pool = _pool_module()
+    a, b = pool.draw_patterns(12, 7), pool.draw_patterns(12, 7)
+    assert a == b and a != pool.draw_patterns(12, 8)
+    assert [k for k, *_ in a] == list(pool.KINDS) * 4
+    lo, hi = pool.HEAVY_RANGE
+    for kind, ns, ew, swaps in a:
+        heavy, light = max(ns, ew), min(ns, ew)
+        assert lo - 5 <= heavy <= hi + 5, (kind, ns, ew)
+        assert (heavy / light < 1.3) if kind == "balanced" else (heavy / light > 1.7), (kind, ns, ew)
+        assert swaps == (kind == "flipping")
+    for kind in pool.KINDS:                       # every kind reaches both the light and the heavy end of the range
+        heavies = [max(ns, ew) for k, ns, ew, _ in a if k == kind]
+        assert min(heavies) < 600 < max(heavies), kind
+
+
+def test_committed_pool_matches_generator_and_general_config_loads():
+    import tempfile
+
+    from traffic_drl.config import load_config
+
+    pool = _pool_module()
+    with tempfile.TemporaryDirectory() as tmp:
+        names = pool.write_pool(tmp, 12, 7)
+        for n in names:
+            for ext in (".rou.xml", ".yaml"):
+                assert open(os.path.join(tmp, n + ext)).read() == open(os.path.join(ROOT, "configs", "scenarios", "pool", n + ext)).read(), n + ext
+    cfg = load_config(os.path.join(ROOT, "configs", "dqn_v_general.yaml"))
+    assert len(cfg["scenarios"]) == 12 and all(os.path.exists(p) for p in cfg["scenarios"])
+    held_out = {"low_traffic", "rush_hour", "tidal"}
+    pool_names = {load_scenario(p)["name"] for p in cfg["scenarios"]}
+    assert not held_out & pool_names
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

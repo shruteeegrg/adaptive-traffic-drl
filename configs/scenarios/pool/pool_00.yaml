@@ -1,0 +1,5 @@
+# Randomised-demand pool member (balanced); regenerate the whole pool with
+#   python scripts/make_scenario_pool.py --out-dir <dir> --count 12 --seed 7
+name: pool_00
+description: balanced, NS 640 / EW 590 veh/h per approach.
+route_file: pool_00.rou.xml

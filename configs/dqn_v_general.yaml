@@ -1,0 +1,35 @@
+# One model for many demand patterns. dqn_v_dqfd.yaml (teacher + frozen demonstrations + margin loss) trained on a
+# pool of 12 randomised-demand scenarios instead of a single one: balanced, uneven and flipping patterns with the
+# heavier axis between 300 and 1300 veh/h per approach (scripts/make_scenario_pool.py, seed 7). Every training
+# episode is a different pattern. The teacher (tuned density rule) demonstrates on the same pool.
+# low_traffic, rush_hour and tidal are NOT in the pool, so they stay a held-out test of generalisation.
+#   traffic-drl sweep --config configs/dqn_v_general.yaml --out-dir results_sweep_vg
+extends: dqn_v_dqfd.yaml
+name: intersection_dqn_v_general
+
+scenarios:
+  - scenarios/pool/pool_00.yaml
+  - scenarios/pool/pool_01.yaml
+  - scenarios/pool/pool_02.yaml
+  - scenarios/pool/pool_03.yaml
+  - scenarios/pool/pool_04.yaml
+  - scenarios/pool/pool_05.yaml
+  - scenarios/pool/pool_06.yaml
+  - scenarios/pool/pool_07.yaml
+  - scenarios/pool/pool_08.yaml
+  - scenarios/pool/pool_09.yaml
+  - scenarios/pool/pool_10.yaml
+  - scenarios/pool/pool_11.yaml
+
+dqn:
+  eval_episodes: 1          # per pool scenario per periodic evaluation (12 scenarios, so already 12 episodes)
+  pretrain:
+    episodes: 24            # two passes over the pool
+
+sweep:
+  episodes: 180             # twelve patterns to learn
+  eval_episodes: 1
+  seeds: [0, 1, 2, 3]
+  grid:
+    gamma: [0.99]
+    double_dqn: [true]

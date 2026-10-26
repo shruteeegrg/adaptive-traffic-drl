@@ -88,17 +88,25 @@ def build_flows(args) -> list:
         raise ValueError("--turns LEFT RIGHT must be non-negative fractions that sum to less than 1")
     vtype = "kt" if getattr(args, "fleet", None) else "car"
     flows = []
+    if getattr(args, "axis_demand", None):
+        return _alternating(*args.axis_demand, turns, vtype, args)
     if not args.tidal:
         for rid, _ in ROUTES:
             flows += _movements(rid, args.vehs_per_hour, turns, vtype, "", 0, args.end)
         return flows
     high, low = args.tidal
+    return _alternating(high, low, turns, vtype, args)
+
+
+def _alternating(ns_rate, ew_rate, turns, vtype, args) -> list:
+    """First period: NS gets ns_rate and EW ew_rate. With a --period shorter than --end the two swap each period."""
+    flows = []
     k, begin = 0, 0.0
     while begin < args.end:
         end = min(begin + args.period, args.end)
-        ns_heavy = k % 2 == 0
+        swapped = k % 2 == 1
         for rid, _ in ROUTES:
-            rate = high if (AXIS[rid] == "NS") == ns_heavy else low
+            rate = ns_rate if (AXIS[rid] == "NS") != swapped else ew_rate
             flows += _movements(rid, rate, turns, vtype, f"_{k}", begin, end)
         k, begin = k + 1, end
     return flows
@@ -128,6 +136,9 @@ def main():
     parser.add_argument("--tidal", type=float, nargs=2, metavar=("HIGH", "LOW"),
                         help="Alternate heavy/light demand between the NS and EW axes (veh/h per approach)")
     parser.add_argument("--period", type=float, default=900, help="Seconds per tidal period (default: 900)")
+    parser.add_argument("--axis-demand", type=float, nargs=2, metavar=("NS", "EW"),
+                        help="Veh/h per approach on the NS and EW axes in the first period; they swap every --period "
+                             "(set --period at or above --end for no swap). Used by scripts/make_scenario_pool.py")
     parser.add_argument("--fleet", choices=["kathmandu"], help="Mixed vehicle types instead of cars only")
     parser.add_argument("--turns", type=float, nargs=2, metavar=("LEFT", "RIGHT"),
                         help="Fraction of each approach turning left and right (default: all straight)")
@@ -141,6 +152,8 @@ def main():
         f.write(TEMPLATE.format(types=build_types(args), routes=route_xml, flows=flow_xml))
     what = (f"tidal {args.tidal[0]:g}/{args.tidal[1]:g} veh/h per approach, period {args.period:g}s"
             if args.tidal else f"{args.vehs_per_hour} veh/h per approach")
+    if args.axis_demand:
+        what = f"NS/EW {args.axis_demand[0]:g}/{args.axis_demand[1]:g} veh/h per approach, period {args.period:g}s"
     what += (f", {args.fleet} fleet" if args.fleet else "") + (f", turns L/R {args.turns[0]:g}/{args.turns[1]:g}" if args.turns else "")
     print(f"Wrote {args.out} ({what}, over {args.end}s)")
 

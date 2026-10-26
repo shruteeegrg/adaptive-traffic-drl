@@ -1,0 +1,5 @@
+# Randomised-demand pool member (flipping); regenerate the whole pool with
+#   python scripts/make_scenario_pool.py --out-dir <dir> --count 12 --seed 7
+name: pool_08
+description: flipping, NS 270 / EW 1170 veh/h per approach, axes swap every 900 s.
+route_file: pool_08.rou.xml
