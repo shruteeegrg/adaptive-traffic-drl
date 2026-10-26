@@ -247,3 +247,9 @@ Vehicles waiting, mean +- 95% CI (verdict needs p < 0.05, at least 5 percent and
 - Double DQN: no consistent benefit (tidal mean 43 vs 54, rush hour 198 vs 165, both with large spread).
 - Diagnosis: the input is no longer the limit, training stability is. Next: soft target update, gradient clipping, learning-rate decay, 5-episode checkpoint selection (`dqn_v_stable.yaml`) and seeding the replay buffer with the density rule's experience (`dqn_v_teacher.yaml`).
 - Sweeps now score each run's BEST checkpoint on fresh ranking seeds (20000s), not the last policy.
+
+## Tidal sweeps with the steadier recipe and the teacher (`results_sweep_vs_tidal`, `results_sweep_vt_tidal`; 120 episodes, 4 seeds, 5-episode selection)
+
+- Best checkpoint on fresh ranking seeds, waiting: stable only 10.1 / 26.1 / 37.2 / 32.9; stable + teacher 23.5 / 12.4 / 19.0 / 13.8 (density rule 7.2, old DQN 10.1, fixed 114).
+- Soft target update, gradient clipping and learning-rate decay alone did not stop the drift (all four runs degrade after episode 10 to 30). Seeding with the teacher kept two of four seeds at about 12 to 18 for all 120 episodes; the other two still drifted (to 64 and 50). Nothing reached the rule, and ordinary Q-learning did not improve on the teacher.
+- Hypothesis: the teacher's transitions are overwritten in the replay buffer after about 55 episodes, after which the network trains only on its own behaviour. Next: `dqn_v_dqfd.yaml` (frozen demonstration buffer, a quarter of each batch from it, large-margin loss).

@@ -111,8 +111,11 @@ def pretrain_from_teacher(env, agent, teacher, episodes: int, noise: float = 0.2
             teacher.reset()
         steps = 0
         while True:
-            action = int(rng.integers(agent.n_actions)) if rng.random() < noise else teacher.act(state, greedy=True)
+            explore = rng.random() < noise
+            action = int(rng.integers(agent.n_actions)) if explore else teacher.act(state, greedy=True)
             next_state, reward, done, _ = env.step(action)
+            if getattr(agent, "demo_fraction", 0.0) > 0 and hasattr(agent, "add_demo"):
+                agent.add_demo(state, action, reward, next_state, done, expert=not explore)
             agent.update(state, action, reward, next_state, done)
             state = next_state
             steps += 1

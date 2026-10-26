@@ -55,6 +55,10 @@ class DQNAgent:
         grad_clip: float = 0.0,
         lr_decay: float = 1.0,
         lr_min: float = 1e-5,
+        demo_fraction: float = 0.0,
+        demo_margin: float = 1.0,
+        demo_margin_weight: float = 1.0,
+        demo_capacity: int = 30000,
     ):
         if loss not in ("huber", "mse"):
             raise ValueError("loss must be 'huber' or 'mse'")
@@ -66,6 +70,12 @@ class DQNAgent:
         self.target_tau = float(target_tau)    # > 0: soft target update every gradient step instead of a hard copy
         self.grad_clip = float(grad_clip)      # > 0: clip the gradient's global norm
         self.lr_decay, self.lr_min = float(lr_decay), float(lr_min)   # learning rate x lr_decay after every episode
+        # Learning from demonstrations (DQfD-style): teacher transitions live in a frozen buffer that is never
+        # overwritten, a fraction `demo_fraction` of every batch comes from it, and a large-margin loss keeps the
+        # teacher's action ranked above the alternatives on those rows.
+        self.demo_fraction, self.demo_margin = float(demo_fraction), float(demo_margin)
+        self.demo_margin_weight, self.demo_capacity = float(demo_margin_weight), int(demo_capacity)
+        self.demo_buffer = None
         self.double_dqn = bool(double_dqn)   # choose the next action with the online net, score it with the target net
         self.loss_fn = huber_loss if loss == "huber" else mse_loss
 
@@ -109,6 +119,28 @@ class DQNAgent:
             learned = True
         self._sync_target(learned)
 
+    def add_demo(self, state, action, reward, next_state, done, expert: bool = True) -> None:
+        """Store a teacher-run transition in the frozen demonstration buffer. `expert` marks actions the
+        teacher chose (as opposed to random exploration noise); only those get the margin loss."""
+        if self.demo_buffer is None:
+            self.demo_buffer = ReplayBuffer(self.demo_capacity, self.state_dim, seed=int(self.rng.integers(1 << 31)),
+                                            frozen=True)
+        self.demo_buffer.add(state, action, reward, next_state, done, expert=float(expert))
+
+    def _sample_batch(self):
+        """A training batch; mixes in demonstrations when a frozen demo buffer exists."""
+        n_demo = 0
+        if self.demo_buffer is not None and len(self.demo_buffer) and self.demo_fraction > 0:
+            n_demo = min(int(round(self.batch_size * self.demo_fraction)), len(self.demo_buffer))
+        n_main = self.batch_size - n_demo
+        s, a, r, s2, d = self.buffer.sample(n_main) if n_main <= len(self.buffer) else self.buffer.sample(len(self.buffer))
+        e = np.zeros(len(a), dtype=np.float32)
+        if n_demo:
+            ds, da, dr, ds2, dd, de = self.demo_buffer.sample_flags(n_demo)
+            s, a, r = np.concatenate([s, ds]), np.concatenate([a, da]), np.concatenate([r, dr])
+            s2, d, e = np.concatenate([s2, ds2]), np.concatenate([d, dd]), np.concatenate([e, de])
+        return s, a, r, s2, d, e
+
     def _sync_target(self, learned: bool) -> None:
         if self.target_tau > 0:
             if learned:
@@ -127,25 +159,28 @@ class DQNAgent:
             self._sync_target(True)
 
     def learn(self) -> float:
-        s, a, r, s2, d = self.buffer.sample(self.batch_size)
+        s, a, r, s2, d, expert = self._sample_batch()
+        n = len(a)
         # Bellman target from the *target* network; terminal states don't bootstrap.
         next_q = self.target.forward(s2, cache=False)
         if self.double_dqn:
             # Double DQN: the online network picks the action, the target network values it,
             # which curbs the over-estimation of plain max-over-target (van Hasselt et al., 2016).
             best = self.online.forward(s2, cache=False).argmax(axis=1)
-            bootstrap = next_q[np.arange(self.batch_size), best]
+            bootstrap = next_q[np.arange(n), best]
         else:
             bootstrap = next_q.max(axis=1)
         y = r + self.gamma * (1.0 - d) * bootstrap
 
         pred = self.online.forward(s)
-        rows = np.arange(self.batch_size)
+        rows = np.arange(n)
         target = pred.copy()
         target[rows, a] = y
         mask = np.zeros_like(pred)
         mask[rows, a] = 1.0  # loss only on the action actually taken
         loss, grad = self.loss_fn(pred, target, mask)
+        if self.demo_margin_weight > 0 and expert.any():
+            grad = grad + self.demo_margin_weight * self._margin_grad(pred, a, expert)
         dW, db = self.online.backward(grad)
         if self.grad_clip > 0:
             dW, db = clip_by_global_norm(dW, db, self.grad_clip)
@@ -155,6 +190,18 @@ class DQNAgent:
         self.last_loss = loss
         self._losses.append(loss)
         return loss
+
+    def _margin_grad(self, pred, actions, expert):
+        """Gradient (wrt pred) of the large-margin loss  max_a [Q(s,a) + margin*(a != a_E)] - Q(s,a_E)  on the
+        rows whose action was the teacher's: it pushes the teacher's action above every other by `margin`."""
+        n = pred.shape[0]
+        penalty = self.demo_margin * (1.0 - np.eye(self.n_actions)[actions])
+        j = (pred + penalty).argmax(axis=1)
+        grad = np.zeros_like(pred)
+        rows = np.flatnonzero((expert > 0) & (j != actions))
+        grad[rows, j[rows]] += 1.0
+        grad[rows, actions[rows]] -= 1.0
+        return grad / n
 
     def pop_mean_loss(self):
         """Mean loss since the last call (None if no gradient step ran);
