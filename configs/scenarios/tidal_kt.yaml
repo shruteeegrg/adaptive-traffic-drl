@@ -1,0 +1,8 @@
+# tidal demand (1100/300 veh/h per approach, flipping every 900 s) with a Kathmandu fleet and turning vehicles.
+# Kathmandu-style vehicle mix (62% motorcycles, 22% cars, 8% buses, 8% light goods) with 15% left and
+# 15% right turners per approach. The mix is an ASSUMPTION taken from the project plan (MOPIT 2023);
+# verify against the source before citing it. Regenerate with:
+#   python scripts/generate_routes.py --out configs/scenarios/tidal_kt.rou.xml --tidal 1100 300 --period 900 --fleet kathmandu --turns 0.15 0.15
+name: tidal_kt
+description: tidal demand (1100/300 veh/h per approach, flipping every 900 s) with a Kathmandu fleet and turning vehicles.
+route_file: tidal_kt.rou.xml

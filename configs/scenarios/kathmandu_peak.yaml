@@ -1,0 +1,8 @@
+# Heavy even peak (1100 veh/h per approach, about 4400 veh/h through the junction) with a Kathmandu fleet and turns. The level is an assumption chosen to saturate a single-lane junction, not a measured value.
+# Kathmandu-style vehicle mix (62% motorcycles, 22% cars, 8% buses, 8% light goods) with 15% left and
+# 15% right turners per approach. The mix is an ASSUMPTION taken from the project plan (MOPIT 2023);
+# verify against the source before citing it. Regenerate with:
+#   python scripts/generate_routes.py --out configs/scenarios/kathmandu_peak.rou.xml --vehs-per-hour 1100 --fleet kathmandu --turns 0.15 0.15
+name: kathmandu_peak
+description: Heavy even peak (1100 veh/h per approach, about 4400 veh/h through the junction) with a Kathmandu fleet and turns. The level is an assumption chosen to saturate a single-lane junction, not a measured value.
+route_file: kathmandu_peak.rou.xml
