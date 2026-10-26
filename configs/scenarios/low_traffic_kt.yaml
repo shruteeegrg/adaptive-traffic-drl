@@ -1,0 +1,8 @@
+# low_traffic demand (120 veh/h per approach) with a Kathmandu fleet and turning vehicles.
+# Kathmandu-style vehicle mix (62% motorcycles, 22% cars, 8% buses, 8% light goods) with 15% left and
+# 15% right turners per approach. The mix is an ASSUMPTION taken from the project plan (MOPIT 2023);
+# verify against the source before citing it. Regenerate with:
+#   python scripts/generate_routes.py --out configs/scenarios/low_traffic_kt.rou.xml --vehs-per-hour 120 --fleet kathmandu --turns 0.15 0.15
+name: low_traffic_kt
+description: low_traffic demand (120 veh/h per approach) with a Kathmandu fleet and turning vehicles.
+route_file: low_traffic_kt.rou.xml

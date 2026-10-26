@@ -253,3 +253,9 @@ Vehicles waiting, mean +- 95% CI (verdict needs p < 0.05, at least 5 percent and
 - Best checkpoint on fresh ranking seeds, waiting: stable only 10.1 / 26.1 / 37.2 / 32.9; stable + teacher 23.5 / 12.4 / 19.0 / 13.8 (density rule 7.2, old DQN 10.1, fixed 114).
 - Soft target update, gradient clipping and learning-rate decay alone did not stop the drift (all four runs degrade after episode 10 to 30). Seeding with the teacher kept two of four seeds at about 12 to 18 for all 120 episodes; the other two still drifted (to 64 and 50). Nothing reached the rule, and ordinary Q-learning did not improve on the teacher.
 - Hypothesis: the teacher's transitions are overwritten in the replay buffer after about 55 episodes, after which the network trains only on its own behaviour. Next: `dqn_v_dqfd.yaml` (frozen demonstration buffer, a quarter of each batch from it, large-margin loss).
+
+## Realistic traffic scenarios (Kathmandu-style)
+- `scripts/generate_routes.py` gained `--fleet kathmandu` (vehicle-type distribution: 62% motorcycle, 22% car, 8% bus, 8% light goods) and `--turns LEFT RIGHT` (turning movements on the junction's existing connections). Output for the old scenarios is byte-identical.
+- New scenarios: `rush_hour_kt` (900/approach), `low_traffic_kt` (120), `tidal_kt` (1100/300, flips every 900 s), `kathmandu_peak` (1100 even, assumed saturation level). All with 15% left and 15% right turners.
+- The fleet shares come from the project plan (MOPIT 2023) and are assumptions until verified against the source. Motorcycles still queue single file (no sublane model), so they take less road but do not filter: a stated limitation.
+- Not yet checked in real SUMO: whether turning vehicles block the single lane (left turners yield to oncoming traffic on the permissive green) and whether all vehicles complete their trips.
