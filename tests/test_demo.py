@@ -49,6 +49,14 @@ def test_run_command_streams_a_fixed_time_episode():
     assert code == 0 and evs[0]["scenario"] == "rush_hour" and evs[-1]["event"] == "done"
 
 
+def test_every_demo_controller_is_accepted_by_the_real_run_parser():
+    """The fake simulator accepts any name; the real `traffic-drl run` parser does not."""
+    for key in core.KEYS:
+        cmd = core.build_run_command(key, "configs/scenarios/tidal.yaml", "models/dqfd_tidal_s3.npz", 1, 0, "o.jsonl")
+        args = cli.build_parser().parse_args(cmd[cmd.index("run"):])
+        assert args.command == "run" and args.controller == core.CLI_CONTROLLER[key]
+
+
 def test_run_command_streams_a_density_rule_episode():
     traci_env.traci = FakeTraci()
     with tempfile.TemporaryDirectory() as d:

@@ -26,6 +26,7 @@ SCENARIOS = {
     "Kathmandu mix, peak (slightly over capacity)": "configs/scenarios/kathmandu_peak.yaml",
 }
 KEYS = ("fixed", "rule", "dqn")        # the three controllers shown side by side
+CLI_CONTROLLER = {"fixed": "fixed", "rule": "actuated", "dqn": "dqn"}    # the names `traffic-drl run` accepts
 CONTROLLERS = {"fixed": "Fixed-time (40 s per direction)", "rule": "Density rule (like Lalitpur's lights)",
                "dqn": "DQN agent"}
 SHORT_NAMES = {"fixed": "Fixed-time", "rule": "Density rule", "dqn": "DQN agent"}   # chart legend labels
@@ -59,7 +60,7 @@ def build_run_command(controller: str, scenario_yaml: str, checkpoint: str, seed
                       delay: float, out_path: str) -> list:
     # fixed and rule do not use the trained state; they run with the same config so all three see the same traffic
     config = config_for(checkpoint) if controller == "dqn" else NEW_CONFIG
-    cmd = [sys.executable, "-m", "traffic_drl.cli", "run", "--controller", controller,
+    cmd = [sys.executable, "-m", "traffic_drl.cli", "run", "--controller", CLI_CONTROLLER[controller],
            "--config", config, "--scenario", scenario_yaml, "--seed", str(seed),
            "--delay", str(delay), "--out", out_path]
     if controller == "dqn":

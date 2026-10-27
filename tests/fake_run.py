@@ -11,7 +11,7 @@ ap.add_argument("--fail", action="store_true")
 a = ap.parse_args()
 if a.fail:
     raise SystemExit("sumo: command not found (pretend)")
-scale = {"fixed": 1.0, "rule": 0.6}.get(a.controller, 0.4)          # pretend the rule waits less, and the DQN least
+scale = {"fixed": 1.0, "actuated": 0.6}.get(a.controller, 0.4)          # pretend the rule waits less, and the DQN least
 with open(a.out, "w") as f:
     def emit(e):
         f.write(json.dumps(e) + "\n"); f.flush()
