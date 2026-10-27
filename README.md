@@ -24,7 +24,7 @@ risk analysis.
 ## Quickstart
 
 ```bash
-pip install -e .
+pip install -e ".[sumo]"               # the [sumo] extra installs the SUMO simulator itself (eclipse-sumo)
 traffic-drl demo                       # interactive app: fixed timer vs density rule vs DQN, side by side (needs SUMO)
 traffic-drl compare --config configs/dqn_v_dqfd.yaml --scenarios tidal,rush_hour \
     --controller fixed --controller "rule=actuated:min=10,max=40,ratio=4,gap=0" \
@@ -112,8 +112,10 @@ conda activate traffic-drl
 pip install -e .
 ```
 
-Requires SUMO installed separately — see https://sumo.dlr.de/docs/Installing/index.html
-and the `SUMO_HOME` environment variable set for TraCI to work.
+Running simulations (training, `compare`, the live demo) needs the SUMO simulator. The easiest way is the PyPI package:
+`pip install -e ".[sumo]"` (or `pip install eclipse-sumo` into the active environment). Alternatively install SUMO from
+https://sumo.dlr.de/docs/Installing/index.html and set `SUMO_HOME`. The tests, `scripts/build_results.py` and the
+"Test results" tab of the demo do not need SUMO.
 
 Sanity-check the environment (Week 2 onward):
 

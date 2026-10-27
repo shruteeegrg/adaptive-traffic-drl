@@ -19,6 +19,11 @@ dependencies = [
     "streamlit",
 ]
 
+[project.optional-dependencies]
+# The SUMO simulator itself, installable from PyPI (gives the `sumo` program inside the virtual environment).
+# Needed for training, `compare` and the live demo; the tests and the saved results do not need it.
+sumo = ["eclipse-sumo"]
+
 [project.scripts]
 traffic-drl = "traffic_drl.cli:main"
 
