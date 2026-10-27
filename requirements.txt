@@ -1,7 +1,6 @@
 numpy
 matplotlib
 pandas
-torch
 traci
 sumolib
 pyyaml
