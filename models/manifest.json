@@ -1,0 +1,248 @@
+{
+  "config": "configs/dqn_v_dqfd.yaml",
+  "models": {
+    "dqfd_tidal": {
+      "scenario": "configs/scenarios/tidal.yaml",
+      "source": "results_sweep_vd_tidal",
+      "default": "models/dqfd_tidal_s3.npz",
+      "agents": [
+        {
+          "file": "models/dqfd_tidal_s0.npz",
+          "seed": 0,
+          "selection_score": 6.86
+        },
+        {
+          "file": "models/dqfd_tidal_s1.npz",
+          "seed": 1,
+          "selection_score": 6.82
+        },
+        {
+          "file": "models/dqfd_tidal_s2.npz",
+          "seed": 2,
+          "selection_score": 6.69
+        },
+        {
+          "file": "models/dqfd_tidal_s3.npz",
+          "seed": 3,
+          "selection_score": 6.29
+        }
+      ]
+    },
+    "dqfd_rush": {
+      "scenario": "configs/scenarios/rush_hour.yaml",
+      "source": "results_sweep_vd_rush",
+      "default": "models/dqfd_rush_s2.npz",
+      "agents": [
+        {
+          "file": "models/dqfd_rush_s0.npz",
+          "seed": 0,
+          "selection_score": 125.48
+        },
+        {
+          "file": "models/dqfd_rush_s1.npz",
+          "seed": 1,
+          "selection_score": 122.47
+        },
+        {
+          "file": "models/dqfd_rush_s2.npz",
+          "seed": 2,
+          "selection_score": 116.16
+        },
+        {
+          "file": "models/dqfd_rush_s3.npz",
+          "seed": 3,
+          "selection_score": 120.44
+        }
+      ]
+    },
+    "dqh_r2": {
+      "scenario": "configs/scenarios/grid/grid_d800_r2.yaml",
+      "source": "results_sweep_vh_r2",
+      "default": "models/dqh_r2_s3.npz",
+      "agents": [
+        {
+          "file": "models/dqh_r2_s0.npz",
+          "seed": 0,
+          "selection_score": 47.61
+        },
+        {
+          "file": "models/dqh_r2_s1.npz",
+          "seed": 1,
+          "selection_score": 52.44
+        },
+        {
+          "file": "models/dqh_r2_s2.npz",
+          "seed": 2,
+          "selection_score": 46.44
+        },
+        {
+          "file": "models/dqh_r2_s3.npz",
+          "seed": 3,
+          "selection_score": 46.33
+        }
+      ]
+    },
+    "dqh_r4": {
+      "scenario": "configs/scenarios/grid/grid_d800_r4.yaml",
+      "source": "results_sweep_vh_r4",
+      "default": "models/dqh_r4_s0.npz",
+      "agents": [
+        {
+          "file": "models/dqh_r4_s0.npz",
+          "seed": 0,
+          "selection_score": 66.85
+        },
+        {
+          "file": "models/dqh_r4_s1.npz",
+          "seed": 1,
+          "selection_score": 70.56
+        },
+        {
+          "file": "models/dqh_r4_s2.npz",
+          "seed": 2,
+          "selection_score": 73.24
+        },
+        {
+          "file": "models/dqh_r4_s3.npz",
+          "seed": 3,
+          "selection_score": 82.21
+        }
+      ]
+    },
+    "dqh_r8": {
+      "scenario": "configs/scenarios/grid/grid_d800_r8.yaml",
+      "source": "results_sweep_vh_r8",
+      "default": "models/dqh_r8_s2.npz",
+      "agents": [
+        {
+          "file": "models/dqh_r8_s0.npz",
+          "seed": 0,
+          "selection_score": 109.66
+        },
+        {
+          "file": "models/dqh_r8_s1.npz",
+          "seed": 1,
+          "selection_score": 120.44
+        },
+        {
+          "file": "models/dqh_r8_s2.npz",
+          "seed": 2,
+          "selection_score": 103.32
+        },
+        {
+          "file": "models/dqh_r8_s3.npz",
+          "seed": 3,
+          "selection_score": 118.09
+        }
+      ]
+    },
+    "dqk_tidal": {
+      "scenario": "configs/scenarios/tidal_kt.yaml",
+      "source": "results_sweep_vk_tidal",
+      "default": "models/dqk_tidal_s1.npz",
+      "agents": [
+        {
+          "file": "models/dqk_tidal_s0.npz",
+          "seed": 0,
+          "selection_score": 243.33
+        },
+        {
+          "file": "models/dqk_tidal_s1.npz",
+          "seed": 1,
+          "selection_score": 227.18
+        },
+        {
+          "file": "models/dqk_tidal_s2.npz",
+          "seed": 2,
+          "selection_score": 238.02
+        },
+        {
+          "file": "models/dqk_tidal_s3.npz",
+          "seed": 3,
+          "selection_score": 242.28
+        }
+      ]
+    },
+    "dqk_rush": {
+      "scenario": "configs/scenarios/rush_hour_kt.yaml",
+      "source": "results_sweep_vk_rush",
+      "default": "models/dqk_rush_s3.npz",
+      "agents": [
+        {
+          "file": "models/dqk_rush_s0.npz",
+          "seed": 0,
+          "selection_score": 7.42
+        },
+        {
+          "file": "models/dqk_rush_s1.npz",
+          "seed": 1,
+          "selection_score": 6.8
+        },
+        {
+          "file": "models/dqk_rush_s2.npz",
+          "seed": 2,
+          "selection_score": 10.93
+        },
+        {
+          "file": "models/dqk_rush_s3.npz",
+          "seed": 3,
+          "selection_score": 5.98
+        }
+      ]
+    },
+    "dqk_peak": {
+      "scenario": "configs/scenarios/kathmandu_peak.yaml",
+      "source": "results_sweep_vk_peak",
+      "default": "models/dqk_peak_s1.npz",
+      "agents": [
+        {
+          "file": "models/dqk_peak_s0.npz",
+          "seed": 0,
+          "selection_score": 74.98
+        },
+        {
+          "file": "models/dqk_peak_s1.npz",
+          "seed": 1,
+          "selection_score": 61.8
+        },
+        {
+          "file": "models/dqk_peak_s2.npz",
+          "seed": 2,
+          "selection_score": 74.4
+        },
+        {
+          "file": "models/dqk_peak_s3.npz",
+          "seed": 3,
+          "selection_score": 68.01
+        }
+      ]
+    },
+    "gen": {
+      "scenario": "configs/scenarios/pool (12 randomised patterns)",
+      "source": "results_sweep_vg",
+      "default": "models/gen_s3.npz",
+      "agents": [
+        {
+          "file": "models/gen_s0.npz",
+          "seed": 0,
+          "selection_score": 5.16
+        },
+        {
+          "file": "models/gen_s1.npz",
+          "seed": 1,
+          "selection_score": 5.31
+        },
+        {
+          "file": "models/gen_s2.npz",
+          "seed": 2,
+          "selection_score": 5.49
+        },
+        {
+          "file": "models/gen_s3.npz",
+          "seed": 3,
+          "selection_score": 4.96
+        }
+      ]
+    }
+  }
+}

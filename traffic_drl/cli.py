@@ -52,7 +52,7 @@ def build_parser() -> argparse.ArgumentParser:
     baseline.add_argument("--seed-base", type=int, default=10000, help="First SUMO seed for evaluation episodes")
 
     run = sub.add_parser("run", help="Run one controller on one scenario, streaming JSON-lines events (used by the demo app)")
-    run.add_argument("--controller", choices=["fixed", "dqn"], required=True)
+    run.add_argument("--controller", choices=["fixed", "actuated", "dqn"], required=True)
     run.add_argument("--config", default="configs/dqn.yaml")
     run.add_argument("--scenario", help="Scenario YAML")
     run.add_argument("--checkpoint", default="checkpoints/dqn_final.npz", help="DQN checkpoint (dqn controller only)")
@@ -186,6 +186,10 @@ def _train(args) -> int:
     return 0
 
 
+# The density rule tuned on selection seeds (results_tune_actuated); the same settings every comparison uses.
+ACTUATED_DEFAULTS = {"min_green": 10.0, "max_green": 40.0, "ratio": 4.0, "gap_queue": 0.0}
+
+
 def _run(args) -> int:
     from traffic_drl.agent import DQNAgent
     from traffic_drl.baseline import FixedTimeAgent
@@ -198,6 +202,10 @@ def _run(args) -> int:
     try:
         if args.controller == "fixed":
             agent = FixedTimeAgent(green_steps=max(1, round(args.green / env.decision_interval)))
+        elif args.controller == "actuated":
+            from traffic_drl.baseline import DensityActuatedAgent
+
+            agent = DensityActuatedAgent.from_config(config, **ACTUATED_DEFAULTS).attach(env)
         else:
             agent = DQNAgent.from_config(config, state_dim=env.state_size)
             try:

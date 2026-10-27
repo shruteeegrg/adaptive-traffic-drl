@@ -18,24 +18,49 @@ SCENARIOS = {
     "Tidal (heavy one way, then the other)": "configs/scenarios/tidal.yaml",
     "Rush hour (heavy everywhere)": "configs/scenarios/rush_hour.yaml",
     "Low traffic": "configs/scenarios/low_traffic.yaml",
+    "Heavy, uneven 2:1 (800 per road on average)": "configs/scenarios/grid/grid_d800_r2.yaml",
+    "Heavy, uneven 4:1": "configs/scenarios/grid/grid_d800_r4.yaml",
+    "Heavy, uneven 8:1": "configs/scenarios/grid/grid_d800_r8.yaml",
+    "Kathmandu mix, near capacity (motorcycles, buses, turns)": "configs/scenarios/rush_hour_kt.yaml",
+    "Kathmandu mix, tidal": "configs/scenarios/tidal_kt.yaml",
+    "Kathmandu mix, peak (slightly over capacity)": "configs/scenarios/kathmandu_peak.yaml",
 }
-CONTROLLERS = {"fixed": "Fixed-time (40 s per direction)", "dqn": "DQN agent"}
-SHORT_NAMES = {"fixed": "Fixed-time", "dqn": "DQN agent"}   # chart legend labels
-GRAY, BLUE = "#8a8985", "#2a78d6"    # same colours as the report figures
+KEYS = ("fixed", "rule", "dqn")        # the three controllers shown side by side
+CONTROLLERS = {"fixed": "Fixed-time (40 s per direction)", "rule": "Density rule (like Lalitpur's lights)",
+               "dqn": "DQN agent"}
+SHORT_NAMES = {"fixed": "Fixed-time", "rule": "Density rule", "dqn": "DQN agent"}   # chart legend labels
+GRAY, BLUE, ORANGE = "#8a8985", "#2a78d6", "#eb6834"    # same colours as the report figures
+COLORS = {"fixed": GRAY, "rule": ORANGE, "dqn": BLUE}
 AUTO = "Best for this scenario (recommended)"
-# Checkpoint that did best on fresh seeds for each scenario (see logs/week-06.md).
+NEW_CONFIG, OLD_CONFIG = "configs/dqn_v_dqfd.yaml", "configs/dqn.yaml"
+# The agent shown for each scenario. The models/ agents are the final ones (trained with demonstrations);
+# each default is the one that scored best on the SELECTION seeds, not on the test seeds (models/manifest.json).
+# Low traffic has no final specialist, so it keeps the earlier model trained on a mix of scenarios.
 BEST_CHECKPOINT = {
-    "configs/scenarios/tidal.yaml": ("checkpoints/dqn_final.npz", "trained on tidal traffic"),
-    "configs/scenarios/rush_hour.yaml": ("checkpoints/dqn_rush.npz", "trained on rush-hour traffic"),
+    "configs/scenarios/tidal.yaml": ("models/dqfd_tidal_s3.npz", "trained on tidal traffic"),
+    "configs/scenarios/rush_hour.yaml": ("models/dqfd_rush_s2.npz", "trained on rush-hour traffic"),
     "configs/scenarios/low_traffic.yaml": ("checkpoints/dqn_mixed.npz", "trained on a mix of scenarios"),
+    "configs/scenarios/grid/grid_d800_r2.yaml": ("models/dqh_r2_s3.npz", "trained on this demand"),
+    "configs/scenarios/grid/grid_d800_r4.yaml": ("models/dqh_r4_s0.npz", "trained on this demand"),
+    "configs/scenarios/grid/grid_d800_r8.yaml": ("models/dqh_r8_s2.npz", "trained on this demand"),
+    "configs/scenarios/rush_hour_kt.yaml": ("models/dqk_rush_s3.npz", "trained on this demand"),
+    "configs/scenarios/tidal_kt.yaml": ("models/dqk_tidal_s1.npz", "trained on this demand"),
+    "configs/scenarios/kathmandu_peak.yaml": ("models/dqk_peak_s1.npz", "trained on this demand"),
 }
-RESULT_SCENARIOS = {"tidal": "Tidal", "rush": "Rush hour", "low": "Low traffic"}
+
+
+def config_for(checkpoint: str) -> str:
+    """Each checkpoint must be loaded with the config it was trained with: the final agents in models/ use
+    the 15-input state, the earlier ones in checkpoints/ the original one."""
+    return NEW_CONFIG if checkpoint.replace("\\", "/").startswith("models/") else OLD_CONFIG
 
 
 def build_run_command(controller: str, scenario_yaml: str, checkpoint: str, seed: int,
                       delay: float, out_path: str) -> list:
+    # fixed and rule do not use the trained state; they run with the same config so all three see the same traffic
+    config = config_for(checkpoint) if controller == "dqn" else NEW_CONFIG
     cmd = [sys.executable, "-m", "traffic_drl.cli", "run", "--controller", controller,
-           "--config", "configs/dqn.yaml", "--scenario", scenario_yaml, "--seed", str(seed),
+           "--config", config, "--scenario", scenario_yaml, "--seed", str(seed),
            "--delay", str(delay), "--out", out_path]
     if controller == "dqn":
         cmd += ["--checkpoint", checkpoint]
@@ -85,7 +110,7 @@ def align_series(series: dict):
 
 
 def list_checkpoints() -> list:
-    paths = sorted(glob.glob(str(ROOT / "checkpoints" / "*.npz")))
+    paths = sorted(glob.glob(str(ROOT / "models" / "*.npz"))) + sorted(glob.glob(str(ROOT / "checkpoints" / "*.npz")))
     return [os.path.relpath(p, ROOT) for p in paths]
 
 
@@ -112,29 +137,20 @@ def verdict(fixed: dict, dqn: dict) -> str:
     return f"About the same: {d:.1f} vehicles waiting for the DQN agent vs {f:.1f} for the fixed timer."
 
 
-def results_table() -> list:
-    """Rows from the saved test runs in figures/*.csv (10 unseen-seed episodes each).
-    Empty if the files are not there."""
-    import csv
+def verdict_vs_rule(rule: dict, dqn: dict) -> str:
+    """One honest sentence comparing the DQN with the density rule. Differences under 5% (or under 2 vehicles
+    waiting) are called a tie: a single run cannot show more than that."""
+    r, d = rule["mean_total_waiting"], dqn["mean_total_waiting"]
+    if abs(d - r) < max(0.05 * r, 2.0):
+        return f"The DQN agent and the density rule are about level here ({d:.1f} vs {r:.1f} vehicles waiting)."
+    if d < r:
+        return (f"The DQN agent had {abs(d - r) / r:.0%} fewer vehicles waiting than the density rule "
+                f"({d:.1f} vs {r:.1f}) in this run. One run is a single sample: see the Test results tab for 100 runs.")
+    return (f"Here the density rule did better: the DQN agent had {(d - r) / r:.0%} more vehicles waiting "
+            f"({d:.1f} vs {r:.1f}).")
 
-    rows = []
-    for key, label in RESULT_SCENARIOS.items():
-        base = ROOT / "figures" / f"{key}_baseline.csv"
-        dqn = ROOT / "figures" / f"{key}_best.csv"          # best checkpoint for this scenario
-        if not dqn.exists():
-            dqn = ROOT / "figures" / f"{key}_dqn.csv"
-        if not (base.exists() and dqn.exists()):
-            continue
 
-        def mean(path, col):
-            vals = [float(r[col]) for r in csv.DictReader(open(path)) if r.get(col) not in (None, "")]
-            return sum(vals) / len(vals)
-
-        rows.append({
-            "Scenario": label,
-            "Waiting, fixed-time": round(mean(base, "mean_total_waiting"), 1),
-            "Waiting, DQN": round(mean(dqn, "mean_total_waiting"), 1),
-            "Vehicles/hour, fixed-time": round(mean(base, "throughput_per_hour")),
-            "Vehicles/hour, DQN": round(mean(dqn, "throughput_per_hour")),
-        })
-    return rows
+def final_results_markdown() -> str:
+    """The consolidated table of the 100-episode comparisons (docs/results_final.md); empty if missing."""
+    path = ROOT / "docs" / "results_final.md"
+    return path.read_text() if path.exists() else ""

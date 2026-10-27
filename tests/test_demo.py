@@ -49,6 +49,16 @@ def test_run_command_streams_a_fixed_time_episode():
     assert code == 0 and evs[0]["scenario"] == "rush_hour" and evs[-1]["event"] == "done"
 
 
+def test_run_command_streams_a_density_rule_episode():
+    traci_env.traci = FakeTraci()
+    with tempfile.TemporaryDirectory() as d:
+        out = os.path.join(d, "r.jsonl")
+        code = cli.main(["run", "--controller", "actuated", "--config", os.path.join(ROOT, "configs", "dqn_v_dqfd.yaml"),
+                         "--scenario", os.path.join(ROOT, "configs", "scenarios", "tidal.yaml"), "--seed", "40000", "--out", out])
+        evs = _events(out)
+    assert code == 0 and evs[0]["controller"] == "actuated" and evs[-1]["event"] == "done"
+
+
 def test_run_command_with_the_shipped_checkpoint():
     traci_env.traci = FakeTraci()
     ckpt = os.path.join(ROOT, "checkpoints", "dqn_final.npz")
@@ -91,21 +101,56 @@ def test_helpers_and_results_table():
     cmd = core.build_run_command("dqn", "configs/scenarios/tidal.yaml", "checkpoints/dqn_final.npz", 7, 0.05, "o.jsonl")
     assert cmd[1:4] == ["-m", "traffic_drl.cli", "run"] and "--checkpoint" in cmd and cmd[cmd.index("--seed") + 1] == "7"
     assert "--checkpoint" not in core.build_run_command("fixed", "s.yaml", "c.npz", 1, 0, "o")
+    assert "--checkpoint" not in core.build_run_command("rule", "s.yaml", "c.npz", 1, 0, "o")
     assert "checkpoints/dqn_final.npz".replace("/", os.sep) in core.list_checkpoints()
-    rows = core.results_table()
-    assert {r["Scenario"] for r in rows} == {"Tidal", "Rush hour", "Low traffic"}
-    tidal = next(r for r in rows if r["Scenario"] == "Tidal")
-    assert tidal["Waiting, DQN"] < tidal["Waiting, fixed-time"] / 5
+    assert "models/dqfd_tidal_s3.npz".replace("/", os.sep) in core.list_checkpoints()
+    text = core.final_results_markdown()
+    assert "| tidal |" in text and "| grid_d800_r4 |" in text and "tuned density rule" in text
     assert "GREEN" in app.signal_html(0) and "RED" in app.signal_html(0)
     assert app.queue_bars_html(["east", "north"], [3, 99]).count("width:100%") == 1   # capped at the scale
 
 
 def test_best_checkpoint_is_chosen_per_scenario():
     tidal, rush = "configs/scenarios/tidal.yaml", "configs/scenarios/rush_hour.yaml"
-    assert core.resolve_checkpoint(core.AUTO, tidal) == "checkpoints/dqn_final.npz"
-    assert core.resolve_checkpoint(core.AUTO, rush) == "checkpoints/dqn_rush.npz"
+    assert core.resolve_checkpoint(core.AUTO, tidal) == "models/dqfd_tidal_s3.npz"
+    assert core.resolve_checkpoint(core.AUTO, rush) == "models/dqfd_rush_s2.npz"
     assert core.resolve_checkpoint(core.AUTO, "configs/scenarios/low_traffic.yaml") == "checkpoints/dqn_mixed.npz"
     assert core.resolve_checkpoint("checkpoints/dqn_final.npz", rush) == "checkpoints/dqn_final.npz"   # explicit choice wins
+
+
+def test_every_scenario_has_an_existing_scenario_file_and_agent_with_the_right_config():
+    import json
+
+    manifest = json.load(open(os.path.join(ROOT, "models", "manifest.json")))
+    defaults = {info["default"] for info in manifest["models"].values()}
+    for label, yaml_path in core.SCENARIOS.items():
+        assert os.path.exists(os.path.join(ROOT, yaml_path)), label
+        ckpt, _ = core.BEST_CHECKPOINT[yaml_path]
+        assert os.path.exists(os.path.join(ROOT, ckpt)), ckpt
+        assert (ckpt in defaults) or ckpt.startswith("checkpoints/"), f"{ckpt} is not the manifest's default"
+        assert core.config_for(ckpt) == ("configs/dqn_v_dqfd.yaml" if ckpt.startswith("models/") else "configs/dqn.yaml")
+    assert core.build_run_command("dqn", "s.yaml", "models/gen_s3.npz", 1, 0, "o")[6:8] == ["--config", "configs/dqn_v_dqfd.yaml"]
+
+
+def test_the_final_agents_load_with_the_final_config_and_act():
+    import numpy as np
+    from traffic_drl.agent import DQNAgent
+    from traffic_drl.config import load_config
+
+    cfg = load_config(os.path.join(ROOT, core.NEW_CONFIG))
+    traci_env.traci = FakeTraci()
+    env = traci_env.TraciEnv(os.path.join(ROOT, core.NEW_CONFIG))
+    agent = DQNAgent.from_config(cfg, state_dim=env.state_size)
+    agent.load(os.path.join(ROOT, "models", "dqfd_rush_s2.npz"))
+    assert agent.act(np.zeros(env.state_size, dtype=np.float32), greedy=True) in (0, 1)
+
+
+def test_verdict_against_the_rule_is_cautious():
+    mk = lambda w: {"mean_total_waiting": w, "throughput_per_hour": 2000.0}
+    assert "about level" in core.verdict_vs_rule(mk(100.0), mk(103.0))
+    assert "about level" in core.verdict_vs_rule(mk(0.2), mk(1.5))          # under 2 vehicles: a tie
+    assert "fewer vehicles waiting than the density rule" in core.verdict_vs_rule(mk(100.0), mk(80.0))
+    assert "density rule did better" in core.verdict_vs_rule(mk(100.0), mk(120.0))
 
 
 def test_chart_lines_are_joined_when_controllers_report_at_different_times():
@@ -127,9 +172,9 @@ def test_app_renders_without_running_anything():
     at = _app_test().run()
     assert not at.exception, [e.value for e in at.exception]
     assert [t.label for t in at.tabs] == ["Live demo", "Test results", "How it works"]
-    assert at.sidebar.button[0].label == "Run both controllers" and not at.sidebar.button[0].disabled
-    assert len(at.sidebar.selectbox[0].options) == 3
-    assert any("Tidal" in str(df.value) for df in at.dataframe)           # results table is on the page
+    assert at.sidebar.button[0].label == "Run all three controllers" and not at.sidebar.button[0].disabled
+    assert len(at.sidebar.selectbox[0].options) == 9
+    assert any("grid_d800_r4" in str(m.value) for m in at.markdown)       # the consolidated results table is on the page
 
 
 def _fake_builder(fail=False):
@@ -149,8 +194,8 @@ def test_app_live_run_with_fake_simulator_end_to_end():
         core.build_run_command = real
     assert not at.exception, [e.value for e in at.exception]
     data = at.session_state["last_run"]["data"]
-    assert data["fixed"][-1]["event"] == "done" and data["dqn"][-1]["event"] == "done"
-    assert any("fewer vehicles waiting" in str(i.value) for i in at.info)   # verdict shown
+    assert all(data[k][-1]["event"] == "done" for k in ("fixed", "rule", "dqn"))
+    assert any("fewer vehicles waiting" in str(i.value) and "density rule" in str(i.value) for i in at.info)   # both verdicts shown
     assert not at.error
 
 

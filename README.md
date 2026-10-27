@@ -21,14 +21,35 @@ evidence and documentation of it.
 See `Project_Proposal.pdf` (Part 1) for the full abstract, objectives, and
 risk analysis.
 
-## Quickstart (once built out — see plan below)
+## Quickstart
 
 ```bash
 pip install -e .
-traffic-drl train --agent dqn --config configs/intersection.yaml
-traffic-drl compare --config configs/intersection.yaml --scenarios rush_hour,low_traffic
-traffic-drl demo   # launches the interactive Streamlit app
+traffic-drl demo                       # interactive app: fixed timer vs density rule vs DQN, side by side (needs SUMO)
+traffic-drl compare --config configs/dqn_v_dqfd.yaml --scenarios tidal,rush_hour \
+    --controller fixed --controller "rule=actuated:min=10,max=40,ratio=4,gap=0" \
+    --controller dqn=dqn:models/dqfd_rush_s2.npz@configs/dqn_v_dqfd.yaml \
+    --reference rule --episodes 100 --seed-base 30000
 ```
+
+`compare` prints the mean waiting with a 95% confidence interval, Welch and paired t-tests, Cohen's d and a verdict
+that needs both statistical and practical significance. Train an agent with `traffic-drl train` or run a seed sweep with
+`traffic-drl sweep` (see `configs/` for the recipes).
+
+## Results at a glance
+
+The question: *when is a learned signal controller worth it against a simple, well-tuned rule?* All numbers are 100
+episodes on seeds nobody trained or tuned on; the full table with every trained agent is `docs/results_final.md`.
+
+- A **density rule** (count vehicles, give green to the busier road, as Lalitpur's 2024 lights do) beats a fixed timer in all
+  16 cells of a demand-by-unevenness grid, by 20 to 98% (`figures/report/regime_map.png`).
+- A **DQN trained from the rule's demonstrations** (frozen demonstration buffer plus a margin loss) matches the rule, and in
+  heavy, uneven or near-capacity traffic some agents are 5 to 14% better. This is seed-dependent: other agents tie or are a few percent worse.
+- A **single model for every demand pattern** does not yet match the rule on unseen demand (negative result; specialists are kept).
+- Plain DQN training was unstable and lost to the rule; the demonstrations are what made it reliable.
+
+Limits: one junction, one lane per road, two phases; the vehicle mix (62% motorcycles, 22% cars, 8% buses, 8% light goods)
+is an assumption to be checked against its source; motorcycles queue in single file; the rule was tuned on cars-only traffic.
 
 ## Repository structure
 
@@ -37,11 +58,15 @@ traffic_drl/         installable package
   cli.py              CLI entry point (train / evaluate / compare / demo)
   env/                config-driven SUMO/TraCI environment wrapper
   agent/              Q-table baseline + hand-written MLP + DQN agent (done)
-  baseline/           fixed-time controller for comparison
+  baseline/           fixed-time controller and the density-responsive rule (the benchmark to beat)
+  stats.py            Welch / paired t-tests, confidence intervals, effect size (no SciPy)
+  compare.py          head-to-head comparison with statistics (`traffic-drl compare`)
   viz/                shared plotting (reward, wait time, throughput)
   app.py              interactive Streamlit demo app
 configs/              SUMO network/route files, hyperparameter + scenario configs
-  scenarios/          rush_hour.yaml, low_traffic.yaml, ...
+  scenarios/          rush_hour, low_traffic, tidal, Kathmandu-style (*_kt), grid/ (regime map), pool/ (randomised demand)
+models/               final trained agents (all seeds) and manifest.json (default per scenario, chosen on selection seeds)
+scripts/              route generators, tuning, regime grid, results table and figure builders
 checkpoints/          trained model artifacts (gitignored, except a final shipped checkpoint)
 logs/                 weekly logs (what was done / plan for next week) — one file per week
 docs/                 contextual report, final report, comparative analysis
@@ -98,15 +123,8 @@ traffic-drl env-check --config configs/intersection.yaml
 
 ## Status
 
-Progress checklist (tick off as PRs merge):
+All implementation, experiments and the results table are complete (`docs/results_final.md`). The weekly logs in `logs/` record
+what was tried in order, including the dead ends. Remaining work is the written report and the demo.
 
-- [x] Week 1 — Repo, environment & package setup
-- [x] Week 2 — SUMO network + config schema
-- [x] Week 3 — Baseline Q-table agent (verified on toy queue model and on real SUMO)
-- [x] Week 4 — State/reward design + NN architecture (verified on real SUMO)
-- [x] Week 5 — DQN training loop (verified on toy queue model and on real SUMO)
-- [~] Week 6 — Training & convergence debugging (sweeps run on SUMO; DQN beats fixed-time on tidal traffic, still loses on rush hour; rush-hour experiments in progress)
-- [~] Week 7 — Visualization module (training/comparison plots done; to be polished)
-- [~] Week 8 — Fixed-timer baseline + scenarios + demo app v1 (baseline, scenarios and app exist; app not yet rehearsed on SUMO)
-- [ ] Week 9 — Comparative analysis + app polish
-- [ ] Week 10 — Final report + product polish
+Reproduce the headline numbers: `python scripts/build_results.py` rebuilds the table and figure from the saved
+`results_compare_*` folders; `traffic-drl compare` (above) regenerates any single cell on a machine with SUMO.

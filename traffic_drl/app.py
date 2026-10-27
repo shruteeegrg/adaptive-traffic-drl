@@ -1,13 +1,13 @@
-"""Interactive demo (Streamlit): fixed-time controller vs the DQN agent.
+"""Interactive demo (Streamlit): fixed-time timer, density rule and DQN agent side by side.
 
 Run with:  traffic-drl demo      (or: streamlit run traffic_drl/app.py)
 
 Tabs:
-  Live demo     pick a scenario, press Run: both controllers drive the same
+  Live demo     pick a scenario, press Run: the three controllers drive the same
                 traffic (same SUMO seed) side by side, with live queues,
                 signal state, counters and a shared "vehicles waiting" chart.
                 Needs SUMO.
-  Test results  the saved comparison from our fresh-seed test runs
+  Test results  the saved comparison from our 100-episode fresh-seed test runs
                 (no SUMO needed -- the fallback if the live demo cannot run).
   How it works  the idea in plain words.
 """
@@ -86,9 +86,10 @@ def main() -> None:
     import streamlit as st
 
     st.set_page_config(page_title="Adaptive Traffic Signal Control", layout="wide")
-    st.title("Adaptive traffic signals: fixed timer vs a learned (DQN) controller")
-    st.caption("A simulated four-way junction in SUMO. The DQN agent looks at the queues and chooses "
-               "which direction gets green; the fixed timer just alternates every 40 seconds.")
+    st.title("Adaptive traffic signals: fixed timer, density rule and a learned (DQN) controller")
+    st.caption("A simulated four-way junction in SUMO. The fixed timer alternates every 40 seconds. The density rule "
+               "counts the vehicles on each road and gives green to the busier one, as Nepal's first AI-enabled lights "
+               "do. The DQN agent learned its own policy from experience in the simulator.")
 
     live_tab, results_tab, about_tab = st.tabs(["Live demo", "Test results", "How it works"])
 
@@ -97,17 +98,17 @@ def main() -> None:
         st.header("Run a comparison")
         scenario_label = st.selectbox("Traffic scenario", list(core.SCENARIOS))
         checkpoints = core.list_checkpoints()
-        checkpoint_choice = st.selectbox("DQN checkpoint", [core.AUTO] + checkpoints if checkpoints
-                                         else ["(none found in checkpoints/)"])
+        checkpoint_choice = st.selectbox("DQN agent", [core.AUTO] + checkpoints if checkpoints
+                                         else ["(none found in models/ or checkpoints/)"])
         seed = st.number_input("Random seed (same traffic for both)", value=40000, step=1)
         delay = st.slider("Playback speed", 0.0, 0.2, 0.05, 0.01,
                           help="Pause per decision. 0 = as fast as possible (a 30-minute episode takes ~2 s).")
-        run_clicked = st.button("Run both controllers", type="primary", disabled=not checkpoints)
+        run_clicked = st.button("Run all three controllers", type="primary", disabled=not checkpoints)
 
     with live_tab:
         placeholders = {}
-        cols = st.columns(2)
-        for col, key in zip(cols, ("fixed", "dqn")):
+        cols = st.columns(len(core.KEYS))
+        for col, key in zip(cols, core.KEYS):
             with col:
                 st.subheader(core.CONTROLLERS[key])
                 placeholders[key] = st.empty()
@@ -115,7 +116,7 @@ def main() -> None:
 
         def render(data: dict, names=None):
             names = names or ["east", "north", "west", "south"]
-            for key in ("fixed", "dqn"):
+            for key in core.KEYS:
                 evs = [e for e in data.get(key, []) if e.get("event") in ("step", "done")]
                 with placeholders[key].container():
                     if not evs:
@@ -129,20 +130,21 @@ def main() -> None:
                     c2.metric("Vehicles served", last["arrived"])
                     c3.metric("Signal switches", last["switches"])
             series = {}
-            for key, color in (("fixed", core.GRAY), ("dqn", core.BLUE)):
+            for key in core.KEYS:
                 evs = [e for e in data.get(key, []) if e.get("event") in ("step", "done")]
                 if evs:
                     series[core.SHORT_NAMES[key]] = pd.Series([e["waiting"] for e in evs],
                                                               index=[e["t"] / 60 for e in evs])
             if series:
                 df = core.align_series(series)
-                colors = {core.SHORT_NAMES["fixed"]: core.GRAY, core.SHORT_NAMES["dqn"]: core.BLUE}
+                colors = {core.SHORT_NAMES[k]: core.COLORS[k] for k in core.KEYS}
                 chart_ph.line_chart(df, color=[colors[c] for c in df.columns],
                                     x_label="simulated minutes", y_label="vehicles waiting", height=260)
             finals = {k: next((e for e in data.get(k, []) if e.get("event") == "done"), None) for k in data}
-            if all(finals.get(k) for k in ("fixed", "dqn")):
-                verdict_ph.info(core.verdict(finals["fixed"], finals["dqn"]))
-            ends = [e for k in ("fixed", "dqn") for e in data.get(k, []) if e.get("event") in ("step", "done")]
+            if all(finals.get(k) for k in core.KEYS):
+                verdict_ph.info(core.verdict(finals["fixed"], finals["dqn"]) + "\n\n"
+                                + core.verdict_vs_rule(finals["rule"], finals["dqn"]))
+            ends = [e for k in core.KEYS for e in data.get(k, []) if e.get("event") in ("step", "done")]
             if ends:
                 t = max(e["t"] for e in ends)
                 total = next((e["episode_length"] for k in data for e in data.get(k, []) if e.get("event") == "start"), 1800)
@@ -153,18 +155,18 @@ def main() -> None:
             scenario_yaml = core.SCENARIOS[scenario_label]
             checkpoint = core.resolve_checkpoint(checkpoint_choice, scenario_yaml)
             files, procs = {}, {}
-            for key in ("fixed", "dqn"):
+            for key in core.KEYS:
                 files[key] = (os.path.join(out_dir, f"{key}.jsonl"), os.path.join(out_dir, f"{key}.err"))
                 cmd = core.build_run_command(key, scenario_yaml, checkpoint, int(seed), float(delay), files[key][0])
                 procs[key] = core.launch(cmd, files[key][1])
-            data = {"fixed": [], "dqn": []}
-            offsets = {"fixed": 0, "dqn": 0}
+            data = {k: [] for k in core.KEYS}
+            offsets = {k: 0 for k in core.KEYS}
             started, failed = time.time(), None
             while True:
                 for key in data:
                     new, offsets[key] = core.read_new_events(files[key][0], offsets[key])
                     data[key] += new
-                render(data, names=next((e["approaches"] for e in data["fixed"] + data["dqn"]
+                render(data, names=next((e["approaches"] for e in sum(data.values(), [])
                                          if e.get("event") == "start"), None))
                 done = all(any(e.get("event") == "done" for e in data[k]) for k in data)
                 dead = [k for k, p in procs.items() if p.poll() not in (None, 0)]
@@ -193,28 +195,32 @@ def main() -> None:
             render(data, names=next((e["approaches"] for k in data for e in data[k]
                                      if e.get("event") == "start"), None))
         else:
-            st.write("Pick a scenario in the sidebar and press **Run both controllers**.")
+            st.write("Pick a scenario in the sidebar and press **Run all three controllers**.")
 
     # ------------------------------------------------------------- test results
     with results_tab:
         st.subheader("Our test results")
-        st.write("Each number is the average of 10 test episodes of 30 simulated minutes, run on random "
-                 "seeds the agent never saw while training. Lower waiting is better; higher vehicles/hour is better.")
-        table = core.results_table()
-        figure = core.ROOT / "figures" / "compare_best.png"
-        if figure.exists():
-            st.image(str(figure))
+        st.write("Every number is the mean of 100 test episodes of 30 simulated minutes, on random seeds nobody trained or tuned on, "
+                 "with identical traffic for every controller. Lower waiting is better. Each learned agent is a separately trained "
+                 "model, and all four per scenario are reported, not just the best.")
+        for name, caption in (("final_results.png", "Each dot is one trained agent, compared with the tuned density rule."),
+                              ("regime_map.png", "Where the density rule helps against a fixed timer, by demand level and how uneven it is.")):
+            figure = core.ROOT / "figures" / "report" / name
+            if figure.exists():
+                st.image(str(figure), caption=caption)
+        table = core.final_results_markdown()
         if table:
-            st.dataframe(pd.DataFrame(table), hide_index=True)
+            st.markdown(table)
         st.markdown(
-            "**What this shows.** The agent that was trained for each kind of traffic is used here. "
-            "On *tidal* traffic (heavy one way, then the other) the DQN agent cuts the number of vehicles waiting "
-            "by about 91% compared with the fixed timer, and it also serves more vehicles per hour. On very light traffic "
-            "both are close to zero waiting (the DQN slightly lower, though it switches the lights far more often). On *rush hour* (both roads saturated) it only **matches** the fixed timer, within "
-            "test noise: the fixed timer is already close to the best you can do when every road is full. "
-            "One model that handles every pattern is not solved yet; the model trained on a mix still does poorly on rush hour.")
-        if not table and not figure.exists():
-            st.info("No saved results found in the figures/ folder.")
+            "**What this shows.**\n\n"
+            "- A density rule (count the vehicles, give green to the busier road) beats the fixed timer in every one of 16 demand patterns we tried, "
+            "by 20 to 98%.\n"
+            "- A DQN trained from the rule's demonstrations **matches** that rule. In some heavy, uneven cases an agent is about 10% better, "
+            "but that depends on which training run you get: some agents tie or lose.\n"
+            "- One model for every demand pattern does not yet match the rule on traffic it has not seen (light traffic is the weakest case).\n"
+            "- Under very heavy load the junction is full and no controller can help much.")
+        if not table:
+            st.info("No saved results found (docs/results_final.md).")
 
     # ------------------------------------------------------------- how it works
     with about_tab:
@@ -226,16 +232,18 @@ when one road is empty and another is jammed.
 **The agent.** A small neural network (a *Deep Q-Network*, written from scratch) controls the lights of a
 simulated junction. Every 5 simulated seconds it looks at the situation and picks which direction gets green.
 
-- **What it sees:** the queue and waiting time on each road, which direction currently has green, and how long it has had it.
+- **What it sees:** the queue, the number of vehicles and the waiting time on each road, which direction currently has green, and how long it has had it.
 - **What it decides:** keep the current green, or switch to the other direction (a yellow light is inserted automatically).
 - **How it learns:** by trial and error in the simulator, rewarded for keeping fewer vehicles waiting.
 
-**How we test it fairly.** Both controllers get exactly the same traffic (same random seed), and we measure
-vehicles waiting, vehicles served per hour and how often the lights switch, on seeds the agent never trained on.
+**How we test it fairly.** All three controllers get exactly the same traffic (same random seed). We measure
+vehicles waiting, vehicles served per hour and how often the lights switch, on seeds the agent never trained on,
+with 100 episodes per comparison, confidence intervals and significance tests.
 
-**What we found.** The first version learned to cheat by flipping the light every second; we found it because we
-tracked the number of switches, fixed the scoring, and added a test. The trained agent is excellent on uneven
-traffic but not yet on balanced rush-hour traffic, which is what we are working on next. Mixed-scenario training already fixed the light-traffic case.
+**What we found.** The first versions of the agent were unstable and often lost to a well-set density rule. Giving
+the agent the rule's demonstrations (and keeping them in memory, with a loss that stops it drifting away from them)
+made training reliable. It now matches the rule, and sometimes beats it by about 10% where the traffic is heavy and
+uneven. We report all trained agents, including the ones that did not.
 """)
 
 
