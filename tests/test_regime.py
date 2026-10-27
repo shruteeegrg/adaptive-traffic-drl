@@ -64,6 +64,24 @@ def test_plot_reads_a_compare_summary_and_draws():
         assert os.path.getsize(out) > 5000
 
 
+def test_results_table_groups_agents_and_counts_verdicts():
+    res = _load("build_results")
+    with tempfile.TemporaryDirectory() as tmp:
+        os.makedirs(os.path.join(tmp, "cmp"))
+        with open(os.path.join(tmp, "cmp", "compare_summary.csv"), "w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=["scenario", "controller", "mean", "change_pct", "verdict"])
+            w.writeheader()
+            for c, m, ch, v in [("fixed", 100.0, 100.0, "worse"), ("rule", 50.0, 0.0, "reference"), ("a_s0", 40.0, -20.0, "better"),
+                                ("a_s1", 52.0, 4.0, "small"), ("a_s2", 60.0, 20.0, "worse")]:
+                w.writerow(dict(scenario="x", controller=c, mean=m, change_pct=ch, verdict=v))
+        rows = res.collect(tmp, [("cmp", "test")])
+        assert len(rows) == 1 and rows[0]["family"] == "a" and len(rows[0]["agents"]) == 3 and rows[0]["rule"] == 50.0
+        text = res.markdown(rows)
+        assert "| x | test | 100.0 | 50.0 | 50.7 (n=3) | 40.0 to 60.0 | +1.3% | 1 / 1 / 1 |" in text, text
+        res.draw(rows, os.path.join(tmp, "f.png"))
+        assert os.path.getsize(os.path.join(tmp, "f.png")) > 5000
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

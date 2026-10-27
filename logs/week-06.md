@@ -284,3 +284,7 @@ Vehicles waiting, mean +- 95% CI (verdict needs p < 0.05, at least 5 percent and
 ## Regime map (results_compare_grid, fixed vs tuned rule, 30 episodes per cell, figures/report/regime_map.png)
 - The rule beats the fixed timer in all 16 cells (demand 200 to 800 veh/h per approach, NS:EW 1 to 8). Change in mean total waiting: -88% to -92% at 200; -41% to -75% at 400; -36% to -98% at 600; -20% to -70% at 800. The smallest gains are at balanced demand near capacity (800 even: 43.5 -> 34.9); the largest where the load is uneven and high (600 at 8:1: 151.0 -> 3.4).
 - Where the rule still leaves most waiting (800 per approach: 34.9 / 47.8 / 76.1 / 119.6 at ratios 1/2/4/8) is where a learned controller has the most room: next test.
+
+## Heavy uneven cells (results_compare_dqh_*, 100 episodes, reference = rule) and the consolidated table
+- 800 per approach at 2:1 / 4:1 / 8:1: rule 48.2 / 75.8 / 119.0; DQfD agents +0.8%, +5.2%, -2.5%, +2.9% / -2.0%, -9.7%, -5.3%, +6.1% / -1.5%, -0.1%, -11.2%, 0.0%. Three agents better, two worse, the rest tie or small: seed-dependent. Average agent vs rule +1.6% / -2.7% / -3.2%.
+- scripts/build_results.py now writes docs/results_final.md and figures/report/final_results.png from the saved compare folders (every trained agent, not only the best).
