@@ -1,0 +1,5 @@
+# Regime-map cell: mean 200 veh/h per approach, NS = 4 x EW (NS 320, EW 80). Regenerate the grid with
+#   python scripts/make_regime_grid.py --out-dir <dir>
+name: grid_d200_r4
+description: demand 200 veh/h per approach on average, NS carries 4 times the EW demand (NS 320, EW 80).
+route_file: grid_d200_r4.rou.xml
