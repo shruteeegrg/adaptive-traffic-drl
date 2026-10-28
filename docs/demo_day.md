@@ -1,120 +1,102 @@
-# Demo day cheat sheet
+# Demo day cheat sheet (v1.0)
 
-## Before you start (10 minutes early, on the Windows laptop)
-1. Plug in the charger. Sleep is already off (`powercfg /change standby-timeout-ac 0`).
-2. Open PowerShell in the project folder and activate the venv, then:
-   ```powershell
-   git pull origin main
-   traffic-drl demo
-   ```
-3. Run **one** scenario all the way through, so everything is warm. Close nothing else heavy (no sweeps).
-4. Have a backup ready: a screen recording of one tidal run, plus `figures/compare_best.png` open as a plain image.
-5. Check the projector / screen early (Windows: `Win + P`).
+## The story in three sentences
+1. Most traffic lights run on a fixed timer. Nepal's first AI-enabled lights (Lalitpur, 2024) instead count vehicles and give green to the busier road.
+2. We built that rule as a benchmark, and a learning controller (a DQN written from scratch, no RL libraries), and tested all three in the SUMO traffic simulator on 100 fresh runs per scenario.
+3. The rule beats the fixed timer everywhere. The learned controller matches the rule, and in heavy, uneven traffic it is sometimes about 10% better, but not reliably. Being honest about that is the result.
 
-## The one-sentence version
-We built a traffic-light controller that learns by trial and error (a DQN, written from scratch, no RL libraries) and compared it with a normal fixed timer in the SUMO traffic simulator.
+## Setup (do it the day before, then again 15 minutes early)
+**Either machine, same idea:** open a terminal in the project folder, activate the environment, check SUMO, start the demo.
 
-## The three scenarios (what "traffic" means in each)
-The junction has four roads (east, north, west, south). Every number below is "vehicles per hour arriving on each road", and every car goes straight through (no turns). Each demo run is 30 simulated minutes.
+Windows (PowerShell):
+```powershell
+cd $HOME\Desktop\adaptive-traffic-drl
+.\.venv\Scripts\Activate.ps1          # if blocked: Set-ExecutionPolicy -Scope Process Bypass
+sumo --version                         # must print a version
+traffic-drl demo
+```
+Mac (Terminal):
+```bash
+cd ~/Downloads/adaptive-traffic-drl-with-git_2     # or wherever the project is
+source .venv/bin/activate
+sumo --version
+traffic-drl demo
+```
+The page opens at http://localhost:8501 (type it in if it does not open itself).
 
-| Scenario | Arrivals per road | What it looks like | Why we test it |
-|---|---|---|---|
-| **Low traffic** | 120 per hour (a car about every 30 s) | Almost empty roads, no real queues. | Checks the controller does not do silly things when there is nothing to manage. |
-| **Rush hour** | 900 per hour on every road (a car about every 4 s) | All four roads are busy at once. Queues build on every side and some roads fill up completely. | The hardest fair test: nobody can be left waiting forever, and the green time has to be shared well. |
-| **Tidal** | North-south 1100 per hour and east-west 300 per hour for the first 15 minutes, then it flips: east-west 1100 and north-south 300 for the last 15 minutes | Heavy traffic one way, light the other way, then the roles swap, like a commuter flow into a city in the morning and out in the evening. | A fixed timer gives both directions equal green, so it wastes green on the quiet road while the busy road jams. This is where an adaptive controller should shine. |
+Checklist
+- [ ] Charger plugged in, sleep off, notifications off, nothing else heavy running.
+- [ ] `sumo --version` works. If it does not: `pip install -e ".[sumo]"` (needs a decent connection, about 160 MB: do this at home).
+- [ ] Run **Rush hour** once all the way through so everything is warm.
+- [ ] **Backups:** (1) a screen recording of one good live run, (2) the **Test results** tab (needs no SUMO), (3) `figures/report/final_results.png` and `figures/report/regime_map.png` open as plain images.
+- [ ] Check the projector early (Windows `Win + P`, Mac Displays settings).
+- [ ] Second machine tested too (both laptops give identical numbers on the same seed, I checked: rush hour 143.3 / 129.0 / 126.1).
 
-(The "standard" scenario with 300 per hour on every road is the base setup the others were generated from; it is not in the demo.)
+## What the three controllers are
+- **Fixed-time:** north-south green for 40 s, then east-west for 40 s, forever. A normal timer.
+- **Density rule:** counts the vehicles on each road and gives green to the busier road (with a minimum of 10 s and a maximum of 40 s). Like the Lalitpur lights. Its settings were tuned on separate seeds, not the test seeds.
+- **DQN agent:** a small neural network that looks at queues, vehicle counts, waiting times and the current green every 5 simulated seconds and chooses keep or switch. It learned from experience in the simulator, started from the rule's demonstrations.
 
-In the demo, say it in one line each:
-- **Low traffic:** "Hardly any cars."
-- **Rush hour:** "Everyone is on the road at once."
-- **Tidal:** "Heavy one way, then the other, like a commute."
+## Run order (sidebar: pick the scenario, DQN agent "Best for this scenario", seed 40000, speed 0.05)
+Numbers below are what you will see (measured on seed 40000, the demo seed; mean vehicles waiting, lower is better). The app prints two sentences at the end: DQN against fixed, and DQN against the rule.
 
-## Run order (sidebar: scenario, checkpoint "Best for this scenario", seed 40000, speed 0.05)
-| # | Scenario | What to point at | What to say |
-|---|---|---|---|
-| 1 | **Tidal** | Grey line climbs, blue stays low. Queue squares pile up on one road under the fixed timer. | "Traffic is heavy one way, then the other. The fixed timer cannot react, the DQN does. About 91% fewer vehicles waiting." |
-| 2 | **Rush hour** | The two lines sit on top of each other. | "Every road is full. The fixed timer is already close to the best possible, and the DQN matches it. We did not beat it here." |
-| 3 | **Low traffic** | Both near zero. | "Almost no cars, so both do fine. The DQN switches the lights more often than it needs to, a weakness we know about." |
+| # | Scenario | Fixed | Rule | DQN | What to point at | What to say |
+|---|---|---|---|---|---|---|
+| 1 | **Tidal** | 112.2 | 6.4 | 6.7 | Grey line climbs, orange and blue stay low. One road's queue piles up under the fixed timer. | "Heavy one way, then the other. The fixed timer cannot react. Both adaptive controllers cut the waiting by about 94%. The DQN matches the rule; it does not beat it." |
+| 2 | **Rush hour** | 143.3 | 129.0 | 126.1 | All three close together, grey on top. | "Every road is busy. Both adaptive controllers are better than fixed, and the DQN and the rule are about level." |
+| 3 | **Kathmandu mix, near capacity** | 12.0 | 9.1 | 8.0 | The mix of small and large vehicles, vehicles turning. | "More realistic traffic: motorcycles, buses and turns. The same story: adaptive beats fixed, DQN and rule are level." |
+| 4 | **Heavy, uneven 8:1** | 319.2 | 122.4 | 104.9 | Orange line sits clearly above blue. | "Where traffic is heavy and very uneven, this run shows the DQN 14% better than the rule. But careful: in our 100-run test, only 1 of 4 trained agents was significantly better here. It depends on the training run." |
+| 5 (optional) | **Kathmandu mix, peak** | 66.7 | 66.7 | 73.7 | All lines tangle; the junction is full. | "Slightly over capacity. When the junction is full, nobody can do much, and here the rule just behaves like the fixed timer. This is the honest failure case." |
 
-Then the **Test results** tab: "These are averages over 10 test runs on traffic the agent never trained on, so they do not depend on one lucky run."
+Other scenarios if asked (seed 40000): **Low traffic** 1.5 / 0.2 / 0.5 (all near zero; the DQN switches lights more than needed, 121 times against 41). **Heavy uneven 2:1** 156.2 / 47.6 / 48.2. **Heavy uneven 4:1** 256.5 / 79.5 / 76.3. **Kathmandu tidal** 294.4 / 253.0 / 242.2.
 
-## The numbers to remember (10 fresh-seed episodes, seeds 30000)
-| Scenario | Fixed-time | DQN | In words |
-|---|---|---|---|
-| Tidal | 115 | 9.9 | DQN far better (about -91%), and serves more vehicles/hour (2749 vs 2445) |
-| Rush hour | 139.7 | 140.8 | A tie |
-| Low traffic | 1.5 | 0.5 | Both near zero; DQN switches 121 times vs 41 |
+Then the **Test results** tab: "Every number there is a mean of 100 test runs on traffic nobody trained or tuned on. Each dot in the figure is a separately trained agent, so you can see the spread, including the agents that lost."
 
-"Waiting" = average number of vehicles waiting (stopped on the roads + held outside) over the 30-minute run. Lower is better.
+## The numbers to remember (100 fresh-seed episodes, seeds 30000)
+| What | Result |
+|---|---|
+| Rule against fixed timer | Better in all 16 demand patterns tried, by 20% to 98% less waiting |
+| DQN against fixed timer (tidal) | About 94% less waiting (6.9 to 7.4 against 114.0) |
+| DQN against fixed timer (rush hour) | About 10% less waiting (122 to 127 against 138.3) |
+| DQN against the rule | Matches it. Heavy uneven traffic: 3 of 12 agents significantly better (5% to 11%), 2 worse, 7 tie or small |
+| Kathmandu near capacity | DQN 7.6 to 8.0, rule 8.8, fixed 11.5 (9% to 14% below the rule, but only about one vehicle) |
+| One model for every pattern | Not good enough yet; specialists are kept |
 
-Live runs use seed 40000 and are a single episode, so they will not match the table exactly. Rush hour on one run was 138.0 (DQN) vs 143.3 (fixed): "about the same", the app says so itself.
-
-My live numbers today (fill in):
-- Tidal: fixed ____  DQN ____
-- Rush hour: fixed 143.3  DQN 138.0
-- Low traffic: fixed ____  DQN ____
+Live runs are a single episode, so they will not match these exactly. "Waiting" means vehicles stopped on the roads plus vehicles held outside because a road is full, averaged over the 30 simulated minutes.
 
 ## What the live panel shows
-- **Vehicles waiting now:** cars stopped on the four roads + cars held outside because the road is full (right now, not an average).
-- **Vehicles served:** cars that finished their trip so far.
-- **Signal switches:** how many times the light changed direction.
-- **Simulated time:** progress through the 30 simulated minutes (a run takes seconds, not 30 minutes).
-- **Chart:** vehicles waiting over time. Grey = fixed timer, blue = DQN. Lower line is better.
+- **Vehicles waiting now** (right now, not an average), **vehicles served**, **signal switches**, **simulated time**.
+- **Chart:** vehicles waiting over time. Grey = fixed, orange = density rule, blue = DQN. Lower is better.
 
 ## How it works (if asked)
-
-### The setting
-SUMO is a traffic simulator: it moves every car second by second, with realistic acceleration, braking and gaps. Our Python code connects to it (through TraCI, SUMO's remote-control interface), reads what is happening at the junction, and tells the traffic light what to do. The junction has four roads and two light settings: north-south green, or east-west green.
-
-### The agent's loop (every 5 simulated seconds)
-1. **Look.** It reads 11 numbers: the queue on each of the 4 roads, how long the cars on each road have been waiting, which direction is green right now, and how long it has been green.
-2. **Choose.** Two options: keep the current green, or switch to the other direction. If it switches, SUMO inserts a 3-second yellow automatically.
-3. **Get scored.** Every simulated second costs "the number of cars waiting" (plus a small extra for cars held outside because a road is full). Switching costs a little extra, to stop it flickering. The reward is the negative of that cost, so fewer waiting cars means a better score.
-4. **Learn.** It stores what happened and updates itself so it picks better choices next time.
-
-### What DQN means
-The agent learns a number called a **Q-value** for each choice: roughly "how good is this choice, counting all the waiting it will cause or avoid in the next few minutes". Both choices get a Q-value and the agent picks the higher one.
-- A simple version stores Q-values in a lookup table (our first Q-table agent). That table only works when the situations are few and coarse.
-- **DQN** replaces the table with a small neural network: 11 inputs, two hidden layers of 64 units, 2 outputs (one Q-value per choice). Because a network can handle numbers it has never seen exactly, it copes with the many different queue situations that really occur.
-
-### Why a delay between action and result matters
-Switching has an **immediate cost** (3 s yellow where nobody moves, plus the switch cost) but pays off **later** (the long queue clears). So the agent has to value the future, not just the next second. The setting that controls this is called **gamma**: higher means it looks further ahead. Raising it from 0.95 to 0.99 is what fixed our rush-hour results.
-
-### The tricks that make DQN trainable
-- **Replay buffer:** it keeps a memory of past steps and learns from random samples, not only the most recent ones, so consecutive similar steps do not mislead it.
-- **Target network:** a slowly-updated copy of the network provides the learning targets, which keeps the learning from chasing itself.
-- **Exploration:** early on it tries random choices (epsilon starts at 1.0) so it discovers what works, then gradually relies more on what it has learned (down to 0.05).
-- All of this, including the network's learning step (backpropagation), is written by hand with NumPy, no RL libraries. We checked the gradients against a numerical test.
-
-### How we train and test it fairly
-- Training runs many 30-minute simulated episodes, each on different random traffic (a different seed).
-- Every few episodes it is tested on seeds it has not trained on, and the best version is saved.
-- Final results are measured on a **third** set of fresh seeds, because choosing the best of many runs makes results look better than they really are.
-- Both controllers always get the same traffic (same seed) in a comparison, so one cannot get luckier traffic than the other.
-
-### What the fixed-time controller is
-It does not learn. It gives north-south green for 40 seconds, then east-west green for 40 seconds, forever, no matter how many cars are waiting. It is the standard yardstick: a real signal on a timer.
+- **The simulator.** SUMO moves every car second by second. Our Python code connects to it (TraCI), reads the junction and sets the lights. Two choices: north-south green or east-west green, with an automatic 3-second yellow.
+- **The agent's loop, every 5 seconds.** Look at the state, choose keep or switch, get scored (every simulated second costs the number of cars waiting, plus a small cost for switching), and learn from it.
+- **What DQN means.** It learns a number (Q-value) for each choice, roughly "how much waiting will this choice cause or avoid in the next few minutes", and picks the higher one. A small neural network replaces a lookup table so it copes with queue situations it has never seen exactly.
+- **Why it was hard to train.** Early versions got good, then drifted and got worse. The fix was **learning from demonstrations**: we keep a frozen memory of the rule's decisions that is never overwritten, mix some of it into every training batch, and add a loss that stops the network drifting away from it, while normal learning still tries to improve on it.
+- **Fair testing.** Same traffic for every controller. Settings tuned on one set of seeds, final results on a different set, 100 runs per cell, confidence intervals and significance tests. A change only counts as "better" if it is statistically significant and at least 5% and 2 vehicles.
 
 ## What we found along the way (good to mention)
-- First version learned to cheat by flipping the light every second. We caught it because we tracked the switch count, fixed the reward, and added a test.
-- Rush hour was clearly worse than the fixed timer (about 200) until we raised the discount factor gamma from 0.95 to 0.99: waiting dropped to about 140 and results became much more consistent across seeds.
-- We picked checkpoints on one set of seeds and confirmed on fresh seeds, because picking the best of many runs looks better than it is.
+- The first agent learned to cheat by flipping the light every second. We caught it from the switch count, changed the reward, and added a test.
+- My first density rule counted only stopped vehicles and lost to the fixed timer. The mistake was mine; counting all vehicles, as a real detector does, fixed it.
+- My first Kathmandu traffic was so heavy that no controller could help. Turning vehicles halve a single lane's capacity (about 1,800 vehicles an hour). I measured it and recalibrated.
 
 ## Honest limits (say these before they are asked)
-- It clearly wins on tidal traffic only. On rush hour it ties; on low traffic both are near zero.
-- It uses a separate model per traffic pattern. One model for everything is not solved (the mixed model is still weak on rush hour).
-- One simulated junction, cars go straight only, no turns, no pedestrians.
-- Training is sensitive to the random seed and the machine; results vary between runs.
+- One junction, one lane per road, two light phases. Motorcycles queue in single file and do not weave between cars.
+- The vehicle mix (62% motorcycles, 22% cars, 8% buses, 8% light goods) is an assumption from a source I still need to confirm.
+- The DQN matches a tuned rule and only sometimes beats it, and that depends on the training run. The rule itself was tuned on cars-only traffic.
+- One model for every traffic pattern does not work yet. Specialist agents per pattern are used.
+- Both the rule and the DQN use vehicle counts, which in real life means detectors or cameras. This is not a "no sensors" solution.
 
 ## Likely questions
-- **"Why not just use the DQN everywhere?"** It only wins where traffic is uneven. Where the fixed timer is already near-optimal there is nothing to gain.
-- **"Why does it tie on rush hour?"** When every road is saturated, any sensible timing moves the same cars. Our hypothesis, not proven.
-- **"Is the SUMO simulation realistic?"** It is a standard traffic simulator, but our setup is simplified (one junction, straight-through traffic).
-- **"What is next?"** An actuated-controller baseline (a smarter non-learning comparison), turning movements, one model for all patterns, and the final report.
-- **"Could it work in a real city?"** Not claimed. It is a research simulation.
+- **"So is the DQN better than the rule?"** About level. In some heavy, uneven cases an agent is about 10% better, but other trained agents tie or lose, so I cannot claim it is better in general.
+- **"Why bother with a DQN then?"** It reached the rule's level without anyone hand-setting thresholds, and in some heavy cases it did better. The rule needs its settings tuned by hand for each junction; the agent learns them from simulation. The cost is a training process that needs care.
+- **"Why a fixed timer as a baseline?"** It is the standard and what many junctions run. The rule is the harder baseline, because it is what Nepal is actually piloting.
+- **"Why does it not win at rush hour or peak?"** When every road is full, any sensible timing moves the same cars. That is my explanation, not proven.
+- **"Is it realistic?"** The simulator is a standard one, but the junction is simplified. The Kathmandu scenarios add motorcycles, buses and turns, with an assumed mix.
+- **"Could it run in a real city?"** Not claimed. It is a simulation study; the next step would be real traffic counts and a multi-junction network.
+- **"What would you do next?"** Multi-lane junctions with motorcycle filtering, real counts to calibrate the demand, a model that generalises across traffic patterns, and several junctions together.
 
 ## If something breaks
-- Live tab shows an error: say "the simulator did not start on this machine", switch to the **Test results** tab (works without SUMO) and show the backup recording.
-- App will not open at all: show `figures/compare_best.png` and the recording.
-- Do NOT run `scripts/preview_demo.py` as a demo: its numbers are fake.
+- Live panel shows an error: say "the simulator did not start on this machine", switch to the **Test results** tab (works without SUMO) and play the screen recording.
+- Page will not open: show `figures/report/final_results.png`, `figures/report/regime_map.png` and the recording.
+- Do not use `scripts/preview_demo.py` as a demo: its numbers are fake.
