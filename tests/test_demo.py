@@ -113,7 +113,7 @@ def test_helpers_and_results_table():
     assert "checkpoints/dqn_final.npz".replace("/", os.sep) in core.list_checkpoints()
     assert "models/dqfd_tidal_s3.npz".replace("/", os.sep) in core.list_checkpoints()
     text = core.final_results_markdown()
-    assert "| tidal |" in text and "| grid_d800_r4 |" in text and "tuned density rule" in text
+    assert "| tidal |" in text and "| grid_d800_r4 |" in text and "reference rule" in text
     assert "GREEN" in app.signal_html(0) and "RED" in app.signal_html(0)
     assert app.queue_bars_html(["east", "north"], [3, 99]).count("width:100%") == 1   # capped at the scale
 

@@ -1,6 +1,6 @@
-# Final results: learned agents against the tuned density rule
+# Final results: learned agents against the reference rule
 
-Mean total waiting (vehicles; lower is better), 100 episodes per cell on fresh seeds (30000+), the same traffic for every controller. Change is against the tuned rule. Verdicts use the rule fixed in advance: Welch p < 0.05 and a change of at least 5% and 2 vehicles. Every independently trained agent is reported, not only the best.
+Mean total waiting (vehicles; lower is better), 100 episodes per cell on fresh seeds (30000+), the same traffic for every controller. Change is against the reference rule, a simple vehicle-counting controller written for this project (standard actuated-signal logic, settings chosen on separate seeds). Verdicts use the rule fixed in advance: Welch p < 0.05 and a change of at least 5% and 2 vehicles. Every independently trained agent is reported, not only the best.
 
 | Scenario | Agents trained as | Fixed | Rule | Agents (mean of n) | Range of agents | Mean change vs rule | Agents: better / tie or small / worse |
 |---|---|---|---|---|---|---|---|
@@ -16,4 +16,4 @@ Mean total waiting (vehicles; lower is better), 100 episodes per cell on fresh s
 | rush_hour | generalist, 12 random patterns (held out) | 138.3 | 126.6 | 137.6 (n=4) | 128.3 to 145.1 | +8.7% | 0 / 1 / 3 |
 | low_traffic | generalist, 12 random patterns (held out) | 1.5 | 0.2 | 1.1 (n=4) | 0.9 to 1.2 | +414.8% | 0 / 4 / 0 |
 
-Notes. "Tie or small" includes changes that are statistically significant but below the practical floor of 2 vehicles: in low_traffic the generalist's +415% is under one vehicle in absolute terms, but its wait per vehicle is 6.6 to 9.0 s against the rule's 1.6 s, so it is clearly worse in practice there. rush_hour_kt's -11.8% is about one vehicle on a base of 8.8 (wait per vehicle 18.7 s -> 16.2 to 17.0 s). Rule and agents were tuned and trained on selection seeds (20000+), never on these test seeds.
+Notes. "Tie or small" includes changes that are statistically significant but below the practical floor of 2 vehicles: in low_traffic the generalist's +415% is under one vehicle in absolute terms, but its wait per vehicle is 6.6 to 9.0 s against the reference rule's 1.6 s, so it is clearly worse in practice there. rush_hour_kt's -11.8% is about one vehicle on a base of 8.8 (wait per vehicle 18.7 s -> 16.2 to 17.0 s). Rule and agents were tuned and trained on selection seeds (20000+), never on these test seeds.
