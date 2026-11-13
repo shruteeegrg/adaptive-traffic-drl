@@ -85,9 +85,7 @@ def new_table_after(anchor_el, rows, widths_cm):
 
 # templates taken before anything is changed
 TPL_BODY = copy.deepcopy(find("The aim is to show")._p)
-TPL_BULLET = copy.deepcopy(find("O1 simulate")._p)
 TPL_CAPTION = copy.deepcopy(find("Table 1:")._p)
-TPL_HEADING2 = copy.deepcopy(find("3.4 Feedback")._p)
 TPL_TITLE = copy.deepcopy(find("Problem 1:")._p)
 TPL_PROBLEM_BODY = copy.deepcopy(find("Problem 1:")._p.getnext())
 TPL_FIGCAP = copy.deepcopy(find("Figure A1:")._p)
@@ -100,7 +98,7 @@ set_runs(find("My project is an adaptive"),
          "direction gets green. I built it with a Deep Q-Network (DQN), a program that learns by trial and error, written from scratch, and I "
          "tested it in SUMO, a free traffic simulator, against a fixed timer. I also developed a very simple controller based on counting "
          "vehicles in each street (the reference rule), to check whether learning adds anything over a simple method. The work is aimed at "
-         "traffic agencies, municipalities and smart-city planners. This report looks back at the work up to Week 8, compares it with the plan "
+         "traffic agencies, municipalities and smart-city planners. This report looks back at the work so far (Weeks 1 to 7), compares it with the plan "
          "in my proposal, explains the hurdles I met and how I overcame them, and sets out the work that remains. Box 1 explains the main "
          "terms in plain words.")
 
@@ -141,8 +139,8 @@ set_runs(find("The method was incremental"),
          "The method was incremental, to limit the convergence risk named in the proposal (the risk that the agent never learns anything "
          "useful): a lookup-table learner (a Q-table) on a simplified problem first, then the neural network and DQN on the full junction. I "
          "planned ten weekly milestones (repository and environment, SUMO network, Q-table, state and reward design with the network, DQN loop, "
-         "tuning, visualisation, baseline and scenarios, comparative analysis, final report). I kept this plan, but I worked through the early "
-         "milestones faster than planned. Three changes were made on purpose. The proposal listed PyTorch or TensorFlow, but I wrote the network "
+         "tuning, visualisation, baseline and scenarios, comparative analysis, final report). I kept this plan, but I worked ahead of it: the "
+         "early milestones took less time than planned, and the comparison work was finished by Week 7. Three changes were made on purpose. The proposal listed PyTorch or TensorFlow, but I wrote the network "
          "by hand in NumPy, including backpropagation (the learning step), so that Objectives 2 and 3 are met literally. I measured success with "
          "the number of vehicles waiting rather than queue length alone, after finding that queue length hides vehicles stuck outside a full road "
          "(Section 4). And I added a second comparison beyond the proposal's fixed timer: the reference rule, based on standard "
@@ -160,19 +158,17 @@ fill_rows(table_after("Table 1:"), [
     ["4", "State/reward design, neural network", "Week 4", "Done early; gradient-checked", "100"],
     ["5", "DQN training loop", "Week 5", "Done early", "100"],
     ["6", "Training, tuning, checkpoints", "Week 6", "Done; unstable training fixed by learning from demonstrations", "100"],
-    ["7", "Visualisation module", "Week 7", "Plots and results figures done", "100"],
-    ["8", "Fixed-time baseline and scenarios", "Week 8", "Done, plus the reference rule, a compare command with statistics, Kathmandu-style traffic", "100"],
-    ["9", "Comparative analysis", "Week 9", "Tests run (100 episodes each); written analysis still to do", "60"],
-    ["10", "Final report and polish", "Week 10", "Not started; first outline written", "10"],
-    ["–", "Contextual report (literature review)", "Not scheduled", "Submitted; supervisor asked for more critical synthesis", "60"],
+    ["7", "Visualisation module", "Week 7", "Done: plots and results figures, plus the fixed-timer and reference-rule comparison, Kathmandu-style traffic and a compare command with statistics (brought forward from later weeks)", "100"],
+    ["8", "Final report and refinements", "Week 8", "Remaining: final report, literature-review synthesis, some code refinements; first outline written", "20"],
+    ["–", "Contextual report (literature review)", "Early in the semester", "Submitted; supervisor asked for more critical synthesis", "60"],
 ])
 
 set_runs(find("I was ahead of plan"),
-         "Up to Week 8 I completed the build milestones ahead of plan, because I worked in short, tested steps and reused each piece. The extra "
-         "time went into the question that mattered most: whether the agent really beats a good comparison. That was harder than building the "
-         "agent. The agent beat the fixed timer, and matched the simple reference rule but did not reliably beat it (Section 4). Three items "
-         "remain: the written comparative analysis, the critical synthesis in the literature review that my supervisor asked for, and the "
-         "final report.")
+         "I completed Weeks 1 to 7 ahead of plan, because I worked in short, tested steps and reused each piece. The extra time went into the "
+         "question that mattered most: whether the agent really beats a good comparison. That was harder than building the agent. The agent "
+         "beat the fixed timer, and matched the simple reference rule but did not reliably beat it (Section 4). Week 8 remains, with three "
+         "items: the final report (including the written comparison of the results), the critical synthesis in the literature review that my "
+         "supervisor asked for, and some refinements in the code.")
 
 set_runs(find("The high points were"),
          "When I started, I did not know how to connect a learning program to a traffic simulator, how to write a neural network's learning "
@@ -193,34 +189,15 @@ set_runs(find("I wrote a weekly log"),
 
 fb = find("[Add after the demo")
 sup = clone_after(fb._p.getprevious(), fb._p,
-                  "My supervisor said that the contextual report showed good technical depth and that starting with a Q-table showed mature "
-                  "judgement, but that the literature review lacks critical synthesis and is mostly descriptive summaries. I will act on this by "
-                  "building a comparison table of the studies (method, state, reward, comparison used, traffic, result), by showing where they "
-                  "disagree, and by linking each point to what my own results show, for example that a simple reference rule is a strong "
-                  "comparison.")
+                  "Earlier in the semester my supervisor gave feedback on my contextual report: it showed good technical depth, and starting "
+                  "with a Q-table showed mature judgement, but the literature review lacked critical synthesis and was mostly descriptive "
+                  "summaries. The feedback is from early in the project, but it still applies. I plan to act on it by building a comparison "
+                  "table of the studies (method, state, reward, comparison used, traffic, result), by showing where they disagree, and by "
+                  "linking each point to what my own results show, for example that a simple reference rule is a strong comparison.")
 for r in sup.runs:
     r.italic = False
-set_runs(fb, "[Add any feedback from my supervisor on this project's progress, and what I will change because of it.]")
+set_runs(fb, "[Add any newer feedback from my supervisor, and what I will change because of it.]")
 
-h35 = clone_after(fb._p, TPL_HEADING2, "3.5 Advice for a student starting this project")
-intro35 = clone_after(h35._p, TPL_BODY,
-                      "Looking back, these are the things I wish I had been told on the first day. Each one comes from something that cost me "
-                      "time.")
-anchor = intro35._p
-for text in (
-        "Build the smallest version that works from end to end first (here, a lookup-table learner on a toy traffic model) and add the "
-        "neural network only after that. When something then fails, you know which new piece caused it.",
-        "Expect the agent to find loopholes. Look at what it does (for example how often it switches the light), not only its score, and write "
-        "a test for every cheat you find.",
-        "Decide how you will judge results before you run them: separate random traffic for tuning and for the final test, enough runs to see "
-        "the spread, and a rule for what counts as a real improvement.",
-        "Compare with a simple method early, not only with a fixed timer. A simple method can beat a clever one, and finding that out late is "
-        "expensive.",
-        "Expect training to be unstable and runs to take hours. Keep a log of each experiment and the question it answers, and script your runs "
-        "so they save results and can be resumed.",
-        "Check that your test traffic can be influenced at all. If the junction is jammed, every controller looks the same.",
-        "Expect negative results, and report them. A clear 'this did not work' is more useful than a result tuned until it looks good."):
-    anchor = clone_after(anchor, TPL_BULLET, text)._p
 
 # ---------------------------------------------------------------- 4. critical analysis
 heading = find("4. Critical analysis")
@@ -340,11 +317,11 @@ if "I started the literature review late" in s.text:
 
 fill_rows(table_after("Table 3:"), [
     ["Action", "Due", "Done when"],
-    ["Write up the comparative analysis (tables, figures, statistics)", "Week 9", "Results chapter drafted from the saved results"],
-    ["Rewrite the literature review with critical synthesis (comparison table, where studies disagree, link to my results)", "Weeks 8–9", "Draft sent to my supervisor"],
-    ["Write the final report (methods, results, discussion, conclusion)", "Weeks 9–10", "Complete draft reviewed by my supervisor"],
-    ["Check the sources I rely on: Hester et al. (2018), van Hasselt et al. (2016), the vehicle-mix source", "Week 9", "Each checked against the original and the text corrected"],
-    ["Fix the survey figures in the contextual report", "Week 9", "Figures labelled as real responses; form matches the appendix"],
+    ["Write the final report (methods, results with tables and figures, discussion, conclusion)", "Week 8", "Complete draft ready for my supervisor"],
+    ["Rewrite the literature review with critical synthesis (comparison table, where studies disagree, link to my results)", "Week 8", "Draft sent to my supervisor"],
+    ["Refine the code: tidy configuration and documentation, final check of the tests", "Week 8", "Repository clean, tests pass, README up to date"],
+    ["Check the sources I rely on: Hester et al. (2018), van Hasselt et al. (2016), the vehicle-mix source", "Week 8", "Each checked against the original and the text corrected"],
+    ["Fix the survey figures in the contextual report", "Week 8", "Figures labelled as real responses; form matches the appendix"],
 ])
 set_runs(find("I will keep the plan current"),
          "I will keep the plan current by updating the README checklist whenever I finish a milestone and by reviewing this table at each "
@@ -371,14 +348,14 @@ set_runs(find("Chapter 8:"), "Chapter 8: Conclusions and further work. ",
          "personal reflection.")
 
 set_runs(find("The build is ahead of plan"),
-         "Up to Week 8 the build is complete and the core objectives are met: a SUMO junction, a hand-written network and DQN, and a fair "
+         "By Week 7 the build is complete and the core objectives are met: a SUMO junction, a hand-written network and DQN, and a fair "
          "comparison with a fixed timer. Adaptive control, learned or rule-based, clearly beats a fixed timer wherever the traffic gives it "
          "something to work with: about 94% less waiting on commute-style traffic and about 10% on a busy evening rush. A very simple "
          "reference rule that counts vehicles gets almost all of that benefit. The learned controller, trained from the rule's demonstrations, "
          "matches the rule and sometimes beats it by about 10% in heavy, uneven traffic, but not reliably, and I do not yet have one model for "
          "every pattern. The main lessons are to choose the comparison carefully, to look at behaviour as well as score, to test on traffic I "
-         "did not choose from, and to report mixed results plainly. I will follow the action plan above, starting with the written "
-         "comparative analysis and the literature review.")
+         "did not choose from, and to report mixed results plainly. I will follow the action plan above, starting with the final report "
+         "and the literature review.")
 
 # ---------------------------------------------------------------- references (details to be checked by the student)
 lopez = find("Lopez, P.A.")
