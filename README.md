@@ -48,7 +48,7 @@ episodes on seeds nobody trained or tuned on; the full table with every trained 
 - A **single model for every demand pattern** does not yet match the rule on unseen demand (negative result; specialists are kept).
 - Plain DQN training was unstable and lost to the rule; the demonstrations are what made it reliable.
 
-Limits: one junction, one lane per road, two phases; the vehicle mix (62% motorcycles, 22% cars, 8% buses, 8% light goods)
+Limits: one junction, one lane per road, two phases (the phase layout is fixed in code, so a different junction layout needs `GREEN_PHASES` changed); the vehicle mix (62% motorcycles, 22% cars, 8% buses, 8% light goods)
 is an assumption to be checked against its source; motorcycles queue in single file; the rule was tuned on cars-only traffic.
 
 ## Repository structure

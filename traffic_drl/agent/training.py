@@ -1,4 +1,4 @@
-"""Env-agnostic training/evaluation loops for the Q-table agent.
+"""Env-agnostic training/evaluation loops for the Q-table and DQN agents.
 
 Works with anything exposing reset()/step(action)/close() -- `TraciEnv`
 for real runs, `SimpleQueueEnv` for fast convergence checks -- so the
@@ -10,6 +10,14 @@ import math
 import os
 
 
+def bootstrap_done(agent, done: bool, info: dict) -> bool:
+    """The `done` flag to store for learning. A time-limit cut-off (info["truncated"]) is not a real terminal
+    state; agents that set `bootstrap_on_timeout` keep bootstrapping from it. Default: unchanged behaviour."""
+    if done and (info or {}).get("truncated") and getattr(agent, "bootstrap_on_timeout", False):
+        return False
+    return done
+
+
 def run_episode(env, agent, train: bool = True, max_steps: int = None) -> float:
     """Run one episode, returning the accumulated reward. With train=False
     the agent acts greedily and its table is left untouched."""
@@ -18,9 +26,9 @@ def run_episode(env, agent, train: bool = True, max_steps: int = None) -> float:
     steps = 0
     while True:
         action = agent.act(state, greedy=not train)
-        next_state, reward, done, _ = env.step(action)
+        next_state, reward, done, info = env.step(action)
         if train:
-            agent.update(state, action, reward, next_state, done)
+            agent.update(state, action, reward, next_state, bootstrap_done(agent, done, info))
         total += reward
         state = next_state
         steps += 1
@@ -113,10 +121,11 @@ def pretrain_from_teacher(env, agent, teacher, episodes: int, noise: float = 0.2
         while True:
             explore = rng.random() < noise
             action = int(rng.integers(agent.n_actions)) if explore else teacher.act(state, greedy=True)
-            next_state, reward, done, _ = env.step(action)
+            next_state, reward, done, info = env.step(action)
+            stored_done = bootstrap_done(agent, done, info)
             if getattr(agent, "demo_fraction", 0.0) > 0 and hasattr(agent, "add_demo"):
-                agent.add_demo(state, action, reward, next_state, done, expert=not explore)
-            agent.update(state, action, reward, next_state, done)
+                agent.add_demo(state, action, reward, next_state, stored_done, expert=not explore)
+            agent.update(state, action, reward, next_state, stored_done)
             state = next_state
             steps += 1
             if done or (max_steps and steps >= max_steps):

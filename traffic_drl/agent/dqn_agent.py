@@ -59,6 +59,7 @@ class DQNAgent:
         demo_margin: float = 1.0,
         demo_margin_weight: float = 1.0,
         demo_capacity: int = 30000,
+        bootstrap_on_timeout: bool = False,
     ):
         if loss not in ("huber", "mse"):
             raise ValueError("loss must be 'huber' or 'mse'")
@@ -76,6 +77,9 @@ class DQNAgent:
         self.demo_fraction, self.demo_margin = float(demo_fraction), float(demo_margin)
         self.demo_margin_weight, self.demo_capacity = float(demo_margin_weight), int(demo_capacity)
         self.demo_buffer = None
+        # True: an episode cut off by the time limit is not stored as terminal, so its last transition still
+        # bootstraps from the next state. False (default) keeps the original behaviour.
+        self.bootstrap_on_timeout = bool(bootstrap_on_timeout)
         self.double_dqn = bool(double_dqn)   # choose the next action with the online net, score it with the target net
         self.loss_fn = huber_loss if loss == "huber" else mse_loss
 
