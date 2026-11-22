@@ -162,7 +162,7 @@ def maybe_pretrain(env, agent, config: dict, verbose: bool = False, make_teacher
 
 def train_agent(env, agent, episodes: int, max_steps: int = None, log_path: str = None, verbose: bool = True,
                 eval_every: int = None, eval_episodes: int = 2, best_path: str = None, history: dict = None,
-                eval_at_start: bool = False):
+                eval_at_start: bool = False, on_episode=None):
     """Train any agent with act/update/decay_epsilon (QTableAgent or
     DQNAgent) for `episodes` episodes; returns the per-episode reward list
     and, if `log_path` is given, writes it as CSV (episode, reward,
@@ -173,7 +173,11 @@ def train_agent(env, agent, episodes: int, max_steps: int = None, log_path: str 
     With `eval_every`, the greedy policy is evaluated on unseen seeds every
     that-many episodes (and after the last); if `best_path` is given the
     best-scoring agent so far is saved there. `history`, if a dict, is
-    filled with best_score / best_episode / evals."""
+    filled with best_score / best_episode / evals.
+
+    `on_episode`, if given, is called after every episode with {episode, episodes, reward, epsilon, loss,
+    metrics, eval (that episode's evaluation or None), best_episode}; returning True stops training early
+    (a background job uses it to report progress and to honour a cancel request)."""
     best_score, best_episode, evals = float("-inf"), None, []
     rewards, epsilons, losses, metrics = [], [], [], []
     if eval_at_start and eval_every:        # e.g. the policy just distilled from a teacher: a candidate "best" too
@@ -210,6 +214,12 @@ def train_agent(env, agent, episodes: int, max_steps: int = None, log_path: str 
             extra = f"states={len(agent.q)}" if hasattr(agent, "q") else f"loss={losses[-1]}"
             print(f"episode {ep + 1}/{episodes}  reward={rewards[-1]:.1f}  "
                   f"epsilon={epsilons[-1]:.3f}  {extra}")
+        if on_episode is not None:
+            just_evaluated = evals[-1] if evals and evals[-1]["episode"] == ep + 1 else None
+            if on_episode({"episode": ep + 1, "episodes": episodes, "reward": rewards[-1], "epsilon": epsilons[-1],
+                           "loss": losses[-1], "metrics": metrics[-1], "eval": just_evaluated,
+                           "best_episode": best_episode}):
+                break
 
     if log_path:
         os.makedirs(os.path.dirname(log_path) or ".", exist_ok=True)

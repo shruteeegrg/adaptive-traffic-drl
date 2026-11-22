@@ -53,9 +53,9 @@ BEST_CHECKPOINT = {
 
 
 def config_for(checkpoint: str) -> str:
-    """Each checkpoint must be loaded with the config it was trained with: the final agents in models/ use
-    the 15-input state, the earlier ones in checkpoints/ the original one."""
-    return NEW_CONFIG if checkpoint.replace("\\", "/").startswith("models/") else OLD_CONFIG
+    """Each checkpoint must be loaded with the config it was trained with: the earlier ones in checkpoints/
+    use the original state, everything else (models/ and client training jobs) the 15-input one."""
+    return OLD_CONFIG if checkpoint.replace("\\", "/").startswith("checkpoints/") else NEW_CONFIG
 
 
 def build_run_command(controller: str, scenario_yaml: str, checkpoint: str, seed: int,

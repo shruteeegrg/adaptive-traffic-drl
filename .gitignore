@@ -29,3 +29,6 @@ data/raw/
 .DS_Store
 .vscode/
 .idea/
+
+# Client projects and training jobs (traffic-drl train-job / the app)
+projects/

@@ -124,6 +124,13 @@ def build_parser() -> argparse.ArgumentParser:
                         help="A DQN trained for THIS junction's demand, as another candidate (label must start with 'dqn')")
     advise.add_argument("--out-dir", default="advice", help="Where advice.json and the comparison files go")
 
+    tj = sub.add_parser("train-job", help="Train a DQN for one scenario (several seeds, keep the best); writes progress to status.json")
+    tj.add_argument("--scenario", required=True)
+    tj.add_argument("--out-dir", required=True)
+    tj.add_argument("--config", default="configs/dqn_v_dqfd.yaml")
+    tj.add_argument("--episodes", type=int, default=120)
+    tj.add_argument("--seeds", default="0,1,2", help="Comma-separated training seeds; the best on selection seeds is kept")
+
     rep = sub.add_parser("report", help="Render the client report (HTML) from an advice.json")
     rep.add_argument("--advice", required=True)
     rep.add_argument("--out", default="report.html")
@@ -461,6 +468,25 @@ def _advise(args) -> int:
     return 0
 
 
+def _train_job(args) -> int:
+    from traffic_drl import training_job
+
+    try:
+        result = training_job.run_job(args.scenario, args.out_dir, config_path=args.config, episodes=args.episodes,
+                                      seeds=[int(x) for x in args.seeds.split(",")])
+    except Exception as e:   # status.json already says why; give the log a readable line too
+        print(f"train-job failed: {type(e).__name__}: {e}", file=sys.stderr)
+        return 1
+    if not result:
+        print("train-job: cancelled")
+        return 3
+    ref = result["reference_waiting"]
+    print(f"chosen seed {result['chosen_seed']}: waiting {result['selection_waiting']:.1f} on selection seeds "
+          f"(fixed {ref['fixed']:.1f}, rule {ref['rule']:.1f})")
+    print(f"model: {result['model']}")
+    return 0
+
+
 def _report(args) -> int:
     from traffic_drl import report
 
@@ -516,6 +542,8 @@ def main(argv=None) -> int:
         return _advise(args)
     elif args.command == "report":
         return _report(args)
+    elif args.command == "train-job":
+        return _train_job(args)
     elif args.command == "demo":
         import subprocess
         from pathlib import Path

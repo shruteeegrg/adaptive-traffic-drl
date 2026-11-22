@@ -12,6 +12,7 @@ Tabs:
   How it works  the idea in plain words.
 """
 
+import json
 import os
 import tempfile
 import time
@@ -81,6 +82,56 @@ def junction_html(names, queues, green: int, cap: int = 12) -> str:
     return "".join(out)
 
 
+TRAINED_LABEL = "My trained agent (trained on the traffic you built)"
+
+
+def job_panel(st, pd) -> None:
+    """Progress, cancel and result of the current training job. Runs inside a fragment that polls while the
+    job is running; when the job ends it triggers one full rerun so the sidebar picks up the new agent."""
+    from traffic_drl import training_job as tj
+
+    job = st.session_state.get("job")
+    if not job:
+        return
+    status = tj.read_status(job["dir"])
+    state = status.get("state")
+    n_seeds, episodes = max(len(status.get("seeds", [])), 1), max(status.get("episodes", 1), 1)
+    if state in ("queued", "running"):
+        done = status.get("seed_index", 0) * episodes + status.get("episode", 0)
+        st.progress(min(1.0, done / (n_seeds * episodes)),
+                    text=f"{status.get('message') or 'starting'} · {status.get('stage') or ''} · "
+                         f"episode {status.get('episode', 0)} of {episodes}")
+        if status.get("rewards"):
+            st.line_chart(pd.DataFrame({"reward this seed": status["rewards"]}), height=160)
+        if status.get("evals"):
+            st.caption("Waiting on check runs (lower is better): "
+                       + ", ".join(f"seed {e['seed']} ep {e['episode']}: {e['waiting']}" for e in status["evals"][-6:]))
+        if st.button("Cancel training", key="cancel_job"):
+            tj.request_cancel(job["dir"])
+        return
+    if state == "done":
+        result = json.loads((Path(job["dir"]) / "result.json").read_text())
+        if st.session_state.get("trained_model") != result["model"]:
+            st.session_state["trained_model"] = result["model"]
+            st.rerun()                       # full rerun: the sidebar's agent list now includes the new agent
+        ref = result["reference_waiting"]
+        st.success("Training finished. The agent is now first in the sidebar's agent list. It has not been tested "
+                   "yet: run the three controllers, then use **Evaluate properly** for the real verdict.")
+        st.markdown("| Trained seed | Waiting on check runs |\n|---|---|\n"
+                    + "\n".join(f"| {r['seed']}{' (chosen)' if r['seed'] == result['chosen_seed'] else ''} | "
+                                f"{r['mean_total_waiting']:.1f} |" for r in result["seeds"])
+                    + f"\n| fixed timer, same runs | {ref['fixed']:.1f} |\n| density rule, same runs | {ref['rule']:.1f} |")
+        st.caption(result["note"])
+    elif state == "cancelled":
+        st.info("Training was cancelled. No agent was kept.")
+    elif state == "stalled":
+        st.error("The training process stopped reporting. Check job.log in the job folder: " + job["dir"])
+    elif state == "failed":
+        st.error(f"Training failed: {status.get('message')}. Details are in job.log in {job['dir']}.")
+    else:
+        st.warning("The training job's status could not be read.")
+
+
 def custom_controls(st):
     """Sidebar controls for the 'build your own traffic' mode. Returns intake's result for the traffic as it is
     set now, or None (after showing why) if it cannot be built."""
@@ -134,7 +185,9 @@ def main() -> None:
             st.caption("The default agent for your own traffic is the generalist, trained on 12 random demand "
                        "patterns. It was not trained on exactly this traffic: that is the honest test.")
         checkpoints = core.list_checkpoints()
-        checkpoint_choice = st.selectbox("DQN agent", [core.AUTO] + checkpoints if checkpoints
+        trained = st.session_state.get("trained_model")
+        mine = [TRAINED_LABEL] if trained and os.path.exists(trained) else []
+        checkpoint_choice = st.selectbox("DQN agent", mine + [core.AUTO] + checkpoints if checkpoints
                                          else ["(none found in models/ or checkpoints/)"])
         seed = st.number_input("Random seed (same traffic for both)", value=40000, step=1)
         delay = st.slider("Playback speed", 0.0, 0.2, 0.05, 0.01,
@@ -190,7 +243,7 @@ def main() -> None:
         if run_clicked:
             out_dir = tempfile.mkdtemp(prefix="traffic_drl_demo_")
             scenario_yaml = built["scenario_yaml"] if built else core.SCENARIOS[scenario_label]
-            checkpoint = core.resolve_checkpoint(checkpoint_choice, scenario_yaml)
+            checkpoint = trained if checkpoint_choice == TRAINED_LABEL else core.resolve_checkpoint(checkpoint_choice, scenario_yaml)
             files, procs = {}, {}
             for key in core.KEYS:
                 files[key] = (os.path.join(out_dir, f"{key}.jsonl"), os.path.join(out_dir, f"{key}.err"))
@@ -263,6 +316,36 @@ def main() -> None:
                     st.markdown(shown["advice"]["table_markdown"])
                     st.download_button("Download the report (HTML, print to PDF)", shown["html"],
                                        file_name="signal_timing_report.html", mime="text/html")
+
+        if last and last.get("scenario_yaml"):
+            with st.expander("Train an agent for this traffic", expanded="job" in st.session_state):
+                from traffic_drl import training_job as tj
+
+                st.write("The agent that ships with the product is not trained on your traffic. This trains one that is, "
+                         "in the background, using the same recipe as the shipped agents: it learns from the density "
+                         "rule's demonstrations, then improves by trial and error. Training is seed-dependent, so "
+                         "several seeds are trained and the best on separate check runs is kept.")
+                k1, k2 = st.columns(2)
+                n_ep = k1.slider("Training episodes per seed", 20, 150, tj.DEFAULT_EPISODES, 10)
+                n_seeds = k2.slider("Seeds to train", 1, 4, len(tj.DEFAULT_SEEDS))
+                st.caption(f"About {tj.estimate_minutes(n_ep, n_seeds):.0f} minutes on a laptop. You can keep using the "
+                           "app while it runs.")
+                job = st.session_state.get("job")
+                busy = bool(job) and tj.read_status(job["dir"]).get("state") in ("queued", "running")
+                if st.button("Start training", disabled=busy):
+                    st.session_state.pop("trained_model", None)
+                    job_dir, _proc = tj.start_job(last["scenario_yaml"], name=(last.get("context") or {}).get("name", "job"),
+                                                  episodes=n_ep, seeds=tuple(range(n_seeds)))
+                    st.session_state["job"] = {"dir": job_dir}
+                    st.rerun()
+                job = st.session_state.get("job")
+                running = bool(job) and tj.read_status(job["dir"]).get("state") in ("queued", "running")
+
+                @st.fragment(run_every=3 if running else None)
+                def _job_view():
+                    job_panel(st, pd)
+
+                _job_view()
 
     # ------------------------------------------------------------- test results
     with results_tab:

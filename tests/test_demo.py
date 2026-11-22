@@ -219,6 +219,58 @@ def test_app_shows_a_helpful_error_when_the_simulator_cannot_start():
     assert len(at.error) == 1 and "Test results" in str(at.error[0].value) and "sumo" in str(at.error[0].value)
 
 
+def _finished_job(tmp_path):
+    from traffic_drl import training_job as tj
+
+    job = tmp_path / "job"
+    job.mkdir()
+    (job / "model.npz").write_bytes(b"x")
+    result = {"model": str(job / "model.npz"), "chosen_seed": 1, "reference_waiting": {"fixed": 70.0, "rule": 48.0},
+              "seeds": [{"seed": 0, "mean_total_waiting": 60.0}, {"seed": 1, "mean_total_waiting": 52.0}],
+              "note": "Scores are on selection seeds."}
+    (job / "result.json").write_text(json.dumps(result))
+    tj.Status(str(job), state="done", episodes=2, seeds=[0, 1]).update()
+    return str(job), result
+
+
+def test_app_finished_training_job_adds_the_agent_to_the_sidebar(tmp_path):
+    real = core.build_run_command
+    core.build_run_command = _fake_builder()
+    try:
+        at = _app_test().run()
+        at.sidebar.button[0].click().run()
+        job_dir, result = _finished_job(tmp_path)
+        at.session_state["job"] = {"dir": job_dir}
+        at.run()
+    finally:
+        core.build_run_command = real
+    assert not at.exception, [e.value for e in at.exception]
+    assert at.session_state["trained_model"] == result["model"]
+    agent_box = [b for b in at.sidebar.selectbox if b.label == "DQN agent"][0]
+    assert agent_box.options[0].startswith("My trained agent")
+    assert any("Training finished" in str(m.value) for m in at.success)
+
+
+def test_app_running_training_job_shows_progress(tmp_path):
+    from traffic_drl import training_job as tj
+
+    real = core.build_run_command
+    core.build_run_command = _fake_builder()
+    try:
+        at = _app_test().run()
+        at.sidebar.button[0].click().run()
+        job = tmp_path / "job"
+        job.mkdir()
+        tj.Status(str(job), state="running", episodes=10, seeds=[0, 1], seed_index=1, episode=5, rewards=[-5.0, -4.0],
+                  message="seed 1 (2 of 2)", stage="training").update()
+        at.session_state["job"] = {"dir": str(job)}
+        at.run()
+    finally:
+        core.build_run_command = real
+    assert not at.exception, [e.value for e in at.exception]
+    assert [b.label for b in at.button if b.label == "Cancel training"]
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):
