@@ -25,7 +25,8 @@ risk analysis.
 
 ```bash
 pip install -e ".[sumo]"               # the [sumo] extra installs the SUMO simulator itself (eclipse-sumo)
-traffic-drl demo                       # interactive app: fixed timer vs density rule vs DQN, side by side (needs SUMO)
+traffic-drl serve                      # Signal Studio, the client web app: build traffic, compare live, get a verdict and report, train an agent (needs SUMO)
+traffic-drl demo                       # the earlier Streamlit demo: fixed timer vs density rule vs DQN, side by side (needs SUMO)
 traffic-drl compare --config configs/dqn_v_dqfd.yaml --scenarios tidal,rush_hour \
     --controller fixed --controller "rule=actuated:min=10,max=40,ratio=4,gap=0" \
     --controller dqn=dqn:models/dqfd_rush_s2.npz@configs/dqn_v_dqfd.yaml \

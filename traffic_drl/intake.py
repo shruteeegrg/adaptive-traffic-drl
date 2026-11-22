@@ -171,6 +171,15 @@ def advisories(summary: dict, periods: list) -> list:
     return notes
 
 
+def preview(spec: dict) -> dict:
+    """Validate `spec` and return {"summary", "advisories"} without writing any files (for live feedback while
+    a client edits the numbers). Raises SpecError exactly as build_scenario does."""
+    periods = _periods({"name": "preview", **spec})
+    _mix(spec), _turns(spec)
+    summary = demand_summary(periods)
+    return {"summary": summary, "advisories": advisories(summary, periods)}
+
+
 def build_scenario(spec: dict, out_dir: str) -> dict:
     """Validate `spec`, write <name>.rou.xml and <name>.yaml into `out_dir`, return a summary:
     {"name", "scenario_yaml", "route_file", "summary", "advisories"}."""

@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Signal Studio</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='7' y='2' width='10' height='20' rx='4' fill='%2312202e'/%3E%3Ccircle cx='12' cy='7' r='2.2' fill='%23c0392b'/%3E%3Ccircle cx='12' cy='12' r='2.2' fill='%23e0a100'/%3E%3Ccircle cx='12' cy='17' r='2.2' fill='%231e9e5a'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="4" fill="#12202e"/><circle cx="12" cy="7" r="2.2" fill="#c0392b"/><circle cx="12" cy="12" r="2.2" fill="#e0a100"/><circle cx="12" cy="17" r="2.2" fill="#1e9e5a"/></svg>
+    <span>Signal Studio</span>
+  </div>
+  <nav class="steps" id="steps" aria-label="Steps">
+    <button data-step="1" class="on"><b>1</b> Traffic</button>
+    <button data-step="2" disabled><b>2</b> Live comparison</button>
+    <button data-step="3" disabled><b>3</b> Verdict &amp; report</button>
+    <button data-step="4" disabled><b>4</b> Train your agent</button>
+  </nav>
+</header>
+
+<main>
+  <!-- 1 ─ traffic -->
+  <section id="step1" class="step show">
+    <div class="intro">
+      <h1>Describe the traffic at your junction</h1>
+      <p class="lead">Set how many vehicles arrive on each road, what kind they are, and how they turn. Then watch three signal controllers handle exactly the same traffic.</p>
+    </div>
+    <div class="presets" id="presets" role="group" aria-label="Starting points"></div>
+    <div class="builder">
+      <div class="card stage">
+        <div class="junction" id="junction">
+          <canvas id="jc" aria-label="Illustration of vehicles arriving on the four roads"></canvas>
+          <div class="arm north"><label>North</label><div class="num"><button data-d="-50" aria-label="Fewer north">−</button><input id="r-north" type="number" min="0" max="1500" step="50"><button data-d="50" aria-label="More north">+</button></div><small>vehicles / hour</small></div>
+          <div class="arm south"><label>South</label><div class="num"><button data-d="-50" aria-label="Fewer south">−</button><input id="r-south" type="number" min="0" max="1500" step="50"><button data-d="50" aria-label="More south">+</button></div><small>vehicles / hour</small></div>
+          <div class="arm east"><label>East</label><div class="num"><button data-d="-50" aria-label="Fewer east">−</button><input id="r-east" type="number" min="0" max="1500" step="50"><button data-d="50" aria-label="More east">+</button></div><small>vehicles / hour</small></div>
+          <div class="arm west"><label>West</label><div class="num"><button data-d="-50" aria-label="Fewer west">−</button><input id="r-west" type="number" min="0" max="1500" step="50"><button data-d="50" aria-label="More west">+</button></div><small>vehicles / hour</small></div>
+        </div>
+        <p class="note">Illustration only: vehicle dots show the mix and the relative volume, not the signals.</p>
+      </div>
+      <aside class="side">
+        <div class="card">
+          <h3>Vehicle mix</h3>
+          <div class="stack" id="mixbar" aria-hidden="true"></div>
+          <div id="mixes"></div>
+          <p class="hint">Shares are rescaled to 100%.</p>
+        </div>
+        <div class="card">
+          <h3>Turning</h3>
+          <div class="row"><label for="t-left">Turn left</label><input id="t-left" type="range" min="0" max="40" value="10"><output id="o-t-left"></output></div>
+          <div class="row"><label for="t-right">Turn right</label><input id="t-right" type="range" min="0" max="40" value="10"><output id="o-t-right"></output></div>
+        </div>
+        <div class="card">
+          <h3>Run</h3>
+          <div class="row"><label for="minutes">Length</label><input id="minutes" type="range" min="5" max="30" step="5" value="30"><output id="o-minutes"></output></div>
+          <label class="check"><input id="swap" type="checkbox"> Swap busy and quiet roads halfway <span class="hint">(a tidal pattern)</span></label>
+        </div>
+        <div class="card load">
+          <h3>Junction load</h3>
+          <div class="gauge" aria-hidden="true"><i class="z1"></i><i class="z2"></i><i class="z3"></i><span id="marker"></span></div>
+          <div class="gauge-read"><b id="loadv">–</b><span id="loadw"></span></div>
+          <p class="hint">1.0 is the most one lane per road can discharge.</p>
+          <div id="advisories"></div>
+          <div id="traffic-error" class="error" hidden></div>
+        </div>
+        <button class="cta" id="goCompare">Compare controllers live <span aria-hidden="true">→</span></button>
+      </aside>
+    </div>
+  </section>
+
+  <!-- 2 ─ live comparison -->
+  <section id="step2" class="step">
+    <div class="intro">
+      <h1>Three controllers, the same traffic</h1>
+      <p class="lead">Each junction below receives identical vehicles at identical times. Only the signal logic differs.</p>
+    </div>
+    <div class="toolbar">
+      <label>Trained agent <select id="agent"></select></label>
+      <div class="seg" id="speed" role="group" aria-label="Playback speed"><button data-v="slow">Slow</button><button data-v="normal" class="on">Normal</button><button data-v="fast">Fast</button></div>
+      <button class="ghost" id="rerun">Run again</button>
+      <span class="status" id="runstatus"></span>
+    </div>
+    <p class="agentnote" id="agentnote"></p>
+    <div class="trio" id="trio"></div>
+    <div class="card chartcard">
+      <div class="charthead"><h3>Vehicles waiting over time</h3><div class="legend" id="legend"></div></div>
+      <svg id="wait" viewBox="0 0 900 262" role="img" aria-label="Vehicles waiting over simulated time, per controller"></svg>
+    </div>
+    <div class="verdict" id="verdict" hidden></div>
+    <div class="actions"><button class="cta" id="goEval" disabled>Get the full verdict and report <span aria-hidden="true">→</span></button></div>
+  </section>
+
+  <!-- 3 ─ verdict -->
+  <section id="step3" class="step">
+    <div class="intro">
+      <h1>Is the difference real?</h1>
+      <p class="lead">One live run is a single sample. This repeats the comparison on fresh random traffic and tests the differences statistically.</p>
+    </div>
+    <div class="card evalcfg" id="evalcfg">
+      <div>
+        <h3>Runs per controller</h3>
+        <div class="seg" id="runs" role="group"><button data-v="10">10 <small>quick look</small></button><button data-v="30" class="on">30 <small>moderate</small></button><button data-v="100">100 <small>firm</small></button></div>
+        <p id="evaltime"></p>
+      </div>
+      <button class="cta" id="startEval">Run the evaluation</button>
+    </div>
+    <div class="card" id="evalprogress" hidden>
+      <h3>Running the evaluation</h3>
+      <div class="chips" id="chips"></div>
+      <div class="bar"><i id="evalbar"></i></div>
+      <p class="hint" id="evaltext"></p>
+    </div>
+    <div id="evalresult" hidden></div>
+  </section>
+
+  <!-- 4 ─ train -->
+  <section id="step4" class="step">
+    <div class="intro">
+      <h1>Train an agent on your traffic</h1>
+      <p class="lead">The shipped agent was not trained on your traffic. This trains one that is, using the same recipe: it first learns from the density rule's demonstrations, then improves by trial and error.</p>
+    </div>
+    <div class="card traincfg" id="traincfg">
+      <div class="row"><label for="tr-ep">Training episodes per seed</label><input id="tr-ep" type="range" min="20" max="150" step="10" value="120"><output id="o-tr-ep"></output></div>
+      <div class="row"><label for="tr-seeds">Seeds to train</label><input id="tr-seeds" type="range" min="1" max="4" value="3"><output id="o-tr-seeds"></output></div>
+      <p class="hint" id="tr-est"></p>
+      <p class="hint">Training is seed-dependent, so several seeds are trained and the best one on separate check runs is kept. You can leave this page open and keep using the other steps.</p>
+      <button class="cta" id="startTrain">Start training</button>
+    </div>
+    <div class="card" id="trainprogress" hidden>
+      <h3 id="trtitle">Training</h3>
+      <div class="bar"><i id="trbar"></i></div>
+      <p class="hint" id="trtext"></p>
+      <svg id="trchart" viewBox="0 0 900 140" role="img" aria-label="Training reward per episode"></svg>
+      <button class="ghost" id="cancelTrain">Cancel training</button>
+    </div>
+    <div id="trainresult" hidden></div>
+  </section>
+</main>
+
+<div id="toast" role="status" aria-live="polite" hidden></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

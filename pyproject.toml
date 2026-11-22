@@ -17,6 +17,8 @@ dependencies = [
     "sumolib",
     "pyyaml",
     "streamlit",
+    "fastapi",
+    "uvicorn",
 ]
 
 [project.optional-dependencies]
@@ -29,3 +31,6 @@ traffic-drl = "traffic_drl.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["traffic_drl*"]
+
+[tool.setuptools.package-data]
+"traffic_drl.web" = ["static/*"]

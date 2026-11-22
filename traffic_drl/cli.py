@@ -131,6 +131,11 @@ def build_parser() -> argparse.ArgumentParser:
     tj.add_argument("--episodes", type=int, default=120)
     tj.add_argument("--seeds", default="0,1,2", help="Comma-separated training seeds; the best on selection seeds is kept")
 
+    serve = sub.add_parser("serve", help="Run the client web application (Signal Studio) on localhost")
+    serve.add_argument("--host", default="127.0.0.1")
+    serve.add_argument("--port", type=int, default=8000)
+    serve.add_argument("--no-browser", action="store_true")
+
     rep = sub.add_parser("report", help="Render the client report (HTML) from an advice.json")
     rep.add_argument("--advice", required=True)
     rep.add_argument("--out", default="report.html")
@@ -544,6 +549,11 @@ def main(argv=None) -> int:
         return _report(args)
     elif args.command == "train-job":
         return _train_job(args)
+    elif args.command == "serve":
+        from traffic_drl.web.server import serve as run_server
+
+        run_server(args.host, args.port, open_browser=not args.no_browser)
+        return 0
     elif args.command == "demo":
         import subprocess
         from pathlib import Path
