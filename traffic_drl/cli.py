@@ -111,6 +111,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("demo", help="Launch the interactive Streamlit demo app")
 
+    intake = sub.add_parser("intake", help="Turn a junction spec (traffic counts, vehicle mix, turns) into a runnable scenario")
+    intake.add_argument("--spec", required=True, help="Junction spec YAML (see configs/examples/junction_example.yaml)")
+    intake.add_argument("--out-dir", help="Where the scenario goes (default: projects/<name>)")
+
     env_check = sub.add_parser(
         "env-check", help="Sanity-check the SUMO/TraCI environment against a config (Week 2)"
     )
@@ -389,6 +393,25 @@ def _compare(args) -> int:
     return 0
 
 
+def _intake(args) -> int:
+    from traffic_drl import intake
+
+    try:
+        result = intake.build_from_file(args.spec, args.out_dir)
+    except (intake.SpecError, OSError) as e:
+        print(f"intake: {e}", file=sys.stderr)
+        return 2
+    s = result["summary"]
+    print(f"wrote {result['scenario_yaml']} and {result['route_file']}")
+    print(f"demand: {s['vehicles']:.0f} vehicles over {s['minutes']:.0f} minutes, peak load {s['peak_load']:.2f} "
+          "(1.0 = what one lane per road can discharge)")
+    for note in result["advisories"]:
+        print(f"note: {note}")
+    print(f"next: traffic-drl compare --config configs/dqn_v_dqfd.yaml --scenarios {result['scenario_yaml']} "
+          "--controller fixed --controller \"rule=actuated:min=10,max=40,ratio=4,gap=0\" --reference rule")
+    return 0
+
+
 def main(argv=None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -429,6 +452,8 @@ def main(argv=None) -> int:
         return _evaluate(args)
     elif args.command == "compare":
         return _compare(args)
+    elif args.command == "intake":
+        return _intake(args)
     elif args.command == "demo":
         import subprocess
         from pathlib import Path
