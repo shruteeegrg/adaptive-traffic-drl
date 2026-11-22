@@ -124,6 +124,10 @@ def build_parser() -> argparse.ArgumentParser:
                         help="A DQN trained for THIS junction's demand, as another candidate (label must start with 'dqn')")
     advise.add_argument("--out-dir", default="advice", help="Where advice.json and the comparison files go")
 
+    rep = sub.add_parser("report", help="Render the client report (HTML) from an advice.json")
+    rep.add_argument("--advice", required=True)
+    rep.add_argument("--out", default="report.html")
+
     intake = sub.add_parser("intake", help="Turn a junction spec (traffic counts, vehicle mix, turns) into a runnable scenario")
     intake.add_argument("--spec", required=True, help="Junction spec YAML (see configs/examples/junction_example.yaml)")
     intake.add_argument("--out-dir", help="Where the scenario goes (default: projects/<name>)")
@@ -428,20 +432,23 @@ def _intake(args) -> int:
 def _advise(args) -> int:
     from traffic_drl import advisor, intake
 
-    notes, scenario = [], args.scenario
+    notes, scenario, context = [], args.scenario, None
     if args.spec:
         try:
             built = intake.build_from_file(args.spec, os.path.join(args.out_dir, "scenario"))
         except (intake.SpecError, OSError) as e:
             print(f"advise: {e}", file=sys.stderr)
             return 2
-        scenario, notes = built["scenario_yaml"], built["advisories"]
+        scenario, notes, context = built["scenario_yaml"], built["advisories"], built["context"]
     dqn = {}
     for item in args.dqn:
         label, _, ckpt = item.partition("=") if "=" in item.split("@")[0] else ("dqn", "", item)
         dqn[label] = ckpt
     advice = advisor.advise(scenario, args.out_dir, config=args.config, episodes=args.episodes,
-                            seed_base=args.seed_base, dqn=dqn, load_notes=notes)
+                            seed_base=args.seed_base, dqn=dqn, load_notes=notes, context=context)
+    from traffic_drl import report
+
+    report_path = report.write_report(advice, os.path.join(args.out_dir, "report.html"))
     print()
     print(advice["table_markdown"])
     print(advice["headline"])
@@ -450,7 +457,16 @@ def _advise(args) -> int:
     print("Settings:", json.dumps(advice["settings"], indent=2))
     for c in advice["caveats"]:
         print(f"note: {c}")
-    print(f"wrote {args.out_dir}/advice.json")
+    print(f"wrote {args.out_dir}/advice.json and {report_path} (open in a browser; print to PDF to share)")
+    return 0
+
+
+def _report(args) -> int:
+    from traffic_drl import report
+
+    with open(args.advice) as f:
+        advice = json.load(f)
+    print(f"wrote {report.write_report(advice, args.out)}")
     return 0
 
 
@@ -498,6 +514,8 @@ def main(argv=None) -> int:
         return _intake(args)
     elif args.command == "advise":
         return _advise(args)
+    elif args.command == "report":
+        return _report(args)
     elif args.command == "demo":
         import subprocess
         from pathlib import Path

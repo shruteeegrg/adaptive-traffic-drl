@@ -35,8 +35,14 @@ def _comparison(data, reference="fixed"):
 def test_rule_recommended_when_it_beats_the_fixed_timer():
     advice = advisor.recommend(*_comparison(_data(fixed=60, rule=40)))
     assert advice["recommended"] == "rule" and advice["change_vs_fixed_pct"] < -30
-    assert advice["confidence"] == "firm"
+    assert advice["confidence"] == "moderate"          # 40 episodes
     assert "fewer vehicles waiting" in advisor.headline({**advice, "headline": ""})
+
+
+def test_firm_needs_a_hundred_episodes():
+    rng = np.random.default_rng(1)
+    data = {"fixed": list(60 + rng.normal(0, 0.5, 100)), "rule": list(40 + rng.normal(0, 0.5, 100))}
+    assert advisor.recommend(*_comparison(data))["confidence"] == "firm"
 
 
 def test_fixed_kept_when_nothing_is_clearly_better():

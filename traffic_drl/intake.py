@@ -226,7 +226,9 @@ def build_scenario(spec: dict, out_dir: str) -> dict:
     yaml_path.write_text(yaml.safe_dump({"name": name, "description": description, "route_file": route_path.name},
                                         sort_keys=False))
     return {"name": name, "scenario_yaml": str(yaml_path), "route_file": str(route_path),
-            "summary": summary, "advisories": advisories(summary, periods)}
+            "summary": summary, "advisories": advisories(summary, periods),
+            "context": {"name": name, "description": description, "periods": [{"minutes": m, **r} for m, r in periods],
+                        "vehicle_mix": mix, "turns": {"left": left, "right": right}, "summary": summary}}
 
 
 def build_from_file(spec_path: str, out_dir: str = None) -> dict:

@@ -22,6 +22,7 @@ DEFAULT_CONFIG = "configs/dqn_v_dqfd.yaml"
 DEFAULT_FIXED_GREEN = 40
 DEFAULT_RULE = {"min": 10, "max": 40, "ratio": 4, "gap": 0}   # tuned on cars-only traffic (see README limits)
 MIN_EPISODES_FOR_CONFIDENCE = 30
+FIRM_EPISODES = 100
 LIMITS = [
     "Results are from simulation of a single four-way junction with one lane per road and two signal phases.",
     "The density rule's settings were tuned on cars-only traffic; mixed traffic (motorcycles, buses) may favour "
@@ -77,8 +78,11 @@ def recommend(summary: list, episode_rows: list, load_notes=None, metric: str = 
         confidence = "preliminary"
         reasons.append(f"Only {n} episodes per controller were run; use at least {MIN_EPISODES_FOR_CONFIDENCE} "
                        "(100 recommended) before acting on this.")
+    elif n < FIRM_EPISODES:
+        confidence = "moderate"
+        reasons.append(f"{n} episodes per controller is a reasonable check; {FIRM_EPISODES} gives a firm result.")
     else:
-        confidence = "firm" if choice != FIXED_LABEL else "firm (no change recommended)"
+        confidence = "firm"
 
     evidence = []
     for c in [FIXED_LABEL] + candidates:
@@ -124,7 +128,7 @@ def settings_for(choice: str, controllers: list) -> dict:
 
 def advise(scenario_yaml: str, out_dir: str, config: str = DEFAULT_CONFIG, episodes: int = 100, seed_base: int = 30000,
            dqn: dict = None, rule_params: dict = None, fixed_green: float = DEFAULT_FIXED_GREEN, load_notes=None,
-           env_factory=None, log=print) -> dict:
+           env_factory=None, log=print, context: dict = None) -> dict:
     """Run the candidates on `scenario_yaml` and return the Advice dict (also written to out_dir/advice.json).
     `dqn` maps a label to a checkpoint ('path' or 'path@config'): only agents trained for this junction's
     demand belong here; a model trained on other traffic is not a fair candidate."""
@@ -142,6 +146,8 @@ def advise(scenario_yaml: str, out_dir: str, config: str = DEFAULT_CONFIG, episo
     advice["settings"] = settings_for(advice["recommended"], controllers)
     advice["scenario"] = os.path.splitext(os.path.basename(scenario_yaml))[0]
     advice["table_markdown"] = table
+    advice["seed_base"] = seed_base
+    advice["context"] = context or {}        # what was assumed about the traffic, for the report
     os.makedirs(out_dir, exist_ok=True)
     with open(os.path.join(out_dir, "advice.json"), "w") as f:
         json.dump(advice, f, indent=2)
