@@ -25,6 +25,8 @@ Build order (see README.md 10-week plan):
 """
 
 import argparse
+import json
+import os
 import sys
 
 
@@ -110,6 +112,17 @@ def build_parser() -> argparse.ArgumentParser:
     compare.add_argument("--out-dir", default="results_compare")
 
     sub.add_parser("demo", help="Launch the interactive Streamlit demo app")
+
+    advise = sub.add_parser("advise", help="Evaluate a junction's traffic under the candidate controllers and recommend one")
+    src = advise.add_mutually_exclusive_group(required=True)
+    src.add_argument("--spec", help="Junction spec YAML (runs intake first)")
+    src.add_argument("--scenario", help="An existing scenario YAML")
+    advise.add_argument("--config", default="configs/dqn_v_dqfd.yaml")
+    advise.add_argument("--episodes", type=int, default=100, help="Episodes per controller (default 100; under 30 is preliminary)")
+    advise.add_argument("--seed-base", type=int, default=30000)
+    advise.add_argument("--dqn", action="append", default=[], metavar="[LABEL=]CHECKPOINT[@CONFIG]",
+                        help="A DQN trained for THIS junction's demand, as another candidate (label must start with 'dqn')")
+    advise.add_argument("--out-dir", default="advice", help="Where advice.json and the comparison files go")
 
     intake = sub.add_parser("intake", help="Turn a junction spec (traffic counts, vehicle mix, turns) into a runnable scenario")
     intake.add_argument("--spec", required=True, help="Junction spec YAML (see configs/examples/junction_example.yaml)")
@@ -412,6 +425,35 @@ def _intake(args) -> int:
     return 0
 
 
+def _advise(args) -> int:
+    from traffic_drl import advisor, intake
+
+    notes, scenario = [], args.scenario
+    if args.spec:
+        try:
+            built = intake.build_from_file(args.spec, os.path.join(args.out_dir, "scenario"))
+        except (intake.SpecError, OSError) as e:
+            print(f"advise: {e}", file=sys.stderr)
+            return 2
+        scenario, notes = built["scenario_yaml"], built["advisories"]
+    dqn = {}
+    for item in args.dqn:
+        label, _, ckpt = item.partition("=") if "=" in item.split("@")[0] else ("dqn", "", item)
+        dqn[label] = ckpt
+    advice = advisor.advise(scenario, args.out_dir, config=args.config, episodes=args.episodes,
+                            seed_base=args.seed_base, dqn=dqn, load_notes=notes)
+    print()
+    print(advice["table_markdown"])
+    print(advice["headline"])
+    for r in advice["reasons"]:
+        print(f"- {r}")
+    print("Settings:", json.dumps(advice["settings"], indent=2))
+    for c in advice["caveats"]:
+        print(f"note: {c}")
+    print(f"wrote {args.out_dir}/advice.json")
+    return 0
+
+
 def main(argv=None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -454,6 +496,8 @@ def main(argv=None) -> int:
         return _compare(args)
     elif args.command == "intake":
         return _intake(args)
+    elif args.command == "advise":
+        return _advise(args)
     elif args.command == "demo":
         import subprocess
         from pathlib import Path
