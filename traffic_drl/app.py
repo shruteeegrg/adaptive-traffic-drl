@@ -81,6 +81,38 @@ def junction_html(names, queues, green: int, cap: int = 12) -> str:
     return "".join(out)
 
 
+def custom_controls(st):
+    """Sidebar controls for the 'build your own traffic' mode. Returns intake's result for the traffic as it is
+    set now, or None (after showing why) if it cannot be built."""
+    from traffic_drl import intake
+
+    st.caption("Describe the traffic on the project's four-way junction (one lane per road, two signal phases).")
+    c1, c2 = st.columns(2)
+    rates = {"north": c1.number_input("North (veh/h)", 0, 1500, 600, 50), "east": c2.number_input("East (veh/h)", 0, 1500, 400, 50),
+             "south": c1.number_input("South (veh/h)", 0, 1500, 600, 50), "west": c2.number_input("West (veh/h)", 0, 1500, 400, 50)}
+    minutes = st.slider("Length of the run (minutes)", 5, 30, 30, 5)
+    swap = st.checkbox("Swap busy and quiet roads halfway (tidal)", help="North/South and East/West trade their rates at the midpoint.")
+    st.markdown("**Vehicle mix** (shares are rescaled to 100%)")
+    mix = {"motorcycle": st.slider("Motorcycles", 0, 100, 62), "car": st.slider("Cars", 0, 100, 22),
+           "bus": st.slider("Buses", 0, 100, 8), "goods": st.slider("Light goods", 0, 100, 8)}
+    t1, t2 = st.columns(2)
+    turns = {"left": t1.slider("Turn left %", 0, 40, 10), "right": t2.slider("Turn right %", 0, 40, 10)}
+    if "custom_dir" not in st.session_state:
+        st.session_state["custom_dir"] = tempfile.mkdtemp(prefix="traffic_drl_custom_")
+    try:
+        built = core.build_custom(core.custom_spec("my_junction", rates, minutes, swap, mix, turns),
+                                  st.session_state["custom_dir"])
+    except intake.SpecError as e:
+        st.error(str(e))
+        return None
+    s = built["summary"]
+    st.metric("Junction load", f"{s['peak_load']:.2f}", help="1.0 is the most one lane per road can discharge.")
+    st.caption(f"About {s['vehicles']:.0f} vehicles in {s['minutes']:.0f} minutes.")
+    for note in built["advisories"]:
+        st.warning(note)
+    return built
+
+
 def main() -> None:
     import pandas as pd
     import streamlit as st
@@ -96,14 +128,19 @@ def main() -> None:
     # ---------------------------------------------------------------- live demo
     with st.sidebar:
         st.header("Run a comparison")
-        scenario_label = st.selectbox("Traffic scenario", list(core.SCENARIOS))
+        scenario_label = st.selectbox("Traffic scenario", [core.CUSTOM] + list(core.SCENARIOS))
+        built = custom_controls(st) if scenario_label == core.CUSTOM else None
+        if scenario_label == core.CUSTOM:
+            st.caption("The default agent for your own traffic is the generalist, trained on 12 random demand "
+                       "patterns. It was not trained on exactly this traffic: that is the honest test.")
         checkpoints = core.list_checkpoints()
         checkpoint_choice = st.selectbox("DQN agent", [core.AUTO] + checkpoints if checkpoints
                                          else ["(none found in models/ or checkpoints/)"])
         seed = st.number_input("Random seed (same traffic for both)", value=40000, step=1)
         delay = st.slider("Playback speed", 0.0, 0.2, 0.05, 0.01,
                           help="Pause per decision. 0 = as fast as possible (a 30-minute episode takes ~2 s).")
-        run_clicked = st.button("Run all three controllers", type="primary", disabled=not checkpoints)
+        run_clicked = st.button("Run all three controllers", type="primary",
+                                disabled=not checkpoints or (scenario_label == core.CUSTOM and built is None))
 
     with live_tab:
         placeholders = {}
@@ -152,7 +189,7 @@ def main() -> None:
 
         if run_clicked:
             out_dir = tempfile.mkdtemp(prefix="traffic_drl_demo_")
-            scenario_yaml = core.SCENARIOS[scenario_label]
+            scenario_yaml = built["scenario_yaml"] if built else core.SCENARIOS[scenario_label]
             checkpoint = core.resolve_checkpoint(checkpoint_choice, scenario_yaml)
             files, procs = {}, {}
             for key in core.KEYS:
@@ -188,14 +225,44 @@ def main() -> None:
                                  "Check that SUMO is installed and SUMO_HOME is set, or use the "
                                  "**Test results** tab, which shows our saved results.\n\n"
                                  f"```\n{msg}\n```")
-            st.session_state["last_run"] = {"data": data, "scenario": scenario_label}
+            st.session_state["last_run"] = {"data": data, "scenario": scenario_label, "scenario_yaml": scenario_yaml,
+                                            "checkpoint": checkpoint, "context": built["context"] if built else None,
+                                            "notes": built["advisories"] if built else []}
         elif "last_run" in st.session_state:
             st.caption(f"Showing the last run: {st.session_state['last_run']['scenario']}")
             data = st.session_state["last_run"]["data"]
             render(data, names=next((e["approaches"] for k in data for e in data[k]
                                      if e.get("event") == "start"), None))
         else:
-            st.write("Pick a scenario in the sidebar and press **Run all three controllers**.")
+            st.write("Set up the traffic in the sidebar and press **Run all three controllers**.")
+
+        last = st.session_state.get("last_run")
+        if last and last.get("scenario_yaml") and all(any(e.get("event") == "done" for e in last["data"].get(k, []))
+                                                      for k in core.KEYS):
+            with st.expander("Evaluate properly and get the report", expanded=False):
+                st.write("One run is a single sample. This repeats the comparison on fresh random traffic, tests the "
+                         "differences statistically, and writes the client report. The trained agent is included as a "
+                         "candidate and only recommended if it beats the density rule.")
+                n_eval = st.slider("Runs per controller", 10, 100, 30, 10, help="100 gives a firm result; under 30 is preliminary.")
+                if st.button("Run the evaluation"):
+                    from traffic_drl import advisor, report
+
+                    ckpt = str(core.ROOT / last["checkpoint"])
+                    cfg = str(core.ROOT / core.config_for(last["checkpoint"]))
+                    with st.spinner(f"Running {3 * n_eval} simulations…"):
+                        advice = advisor.advise(last["scenario_yaml"], tempfile.mkdtemp(prefix="traffic_drl_advice_"),
+                                                config=str(core.ROOT / advisor.DEFAULT_CONFIG), episodes=n_eval,
+                                                dqn={"dqn": f"{ckpt}@{cfg}"}, load_notes=last.get("notes"),
+                                                context=last.get("context"), log=lambda *_: None)
+                    st.session_state["advice"] = {"advice": advice, "html": report.render_report(advice)}
+                shown = st.session_state.get("advice")
+                if shown:
+                    st.success(shown["advice"]["headline"])
+                    for r in shown["advice"]["reasons"]:
+                        st.write("- " + r)
+                    st.markdown(shown["advice"]["table_markdown"])
+                    st.download_button("Download the report (HTML, print to PDF)", shown["html"],
+                                       file_name="signal_timing_report.html", mime="text/html")
 
     # ------------------------------------------------------------- test results
     with results_tab:

@@ -181,7 +181,7 @@ def test_app_renders_without_running_anything():
     assert not at.exception, [e.value for e in at.exception]
     assert [t.label for t in at.tabs] == ["Live demo", "Test results", "How it works"]
     assert at.sidebar.button[0].label == "Run all three controllers" and not at.sidebar.button[0].disabled
-    assert len(at.sidebar.selectbox[0].options) == 9
+    assert len(at.sidebar.selectbox[0].options) == 10 and at.sidebar.selectbox[0].options[0] == core.CUSTOM
     assert any("grid_d800_r4" in str(m.value) for m in at.markdown)       # the consolidated results table is on the page
 
 
@@ -234,3 +234,32 @@ def test_junction_drawing_shows_queues_and_signal():
     assert svg.count('fill="#2a78d6"') == 3 + 0 + 12 + 1          # one square per queued car, capped at 12
     assert svg.count("#1e9e5a") == 2 and svg.count("#c0392b") == 2  # north-south green, east-west red
     assert "East: 3" in svg and "West: 99" in svg
+
+
+def test_custom_traffic_builds_a_runnable_scenario(tmp_path):
+    rates = {"east": 300, "north": 600, "west": 300, "south": 600}
+    built = core.build_custom(core.custom_spec("my_junction", rates, 30, False,
+                                               {"motorcycle": 62, "car": 22, "bus": 8, "goods": 8}, {"left": 10, "right": 10}),
+                              str(tmp_path))
+    assert os.path.exists(built["scenario_yaml"]) and built["summary"]["minutes"] == 30
+    # an unknown scenario gets the generalist, not a model trained for other traffic
+    assert core.resolve_checkpoint(core.AUTO, built["scenario_yaml"]) == core.GENERALIST
+
+
+def test_custom_tidal_swap_makes_two_periods_and_all_zero_mix_means_cars(tmp_path):
+    spec = core.custom_spec("t", {"east": 200, "north": 800, "west": 200, "south": 800}, 20, True, {"car": 0}, {})
+    assert [p["minutes"] for p in spec["demand"]] == [10, 10]
+    assert spec["demand"][1]["east"] == 800 and spec["demand"][1]["north"] == 200       # axes trade rates
+    assert spec["vehicle_mix"] == "cars"
+    assert core.custom_spec("t", {"east": 1, "north": 1, "west": 1, "south": 1}, 99)["duration_minutes"] == 30   # capped at the episode length
+
+
+def test_app_custom_mode_shows_controls_and_load():
+    at = _app_test().run()
+    assert not at.exception, [e.value for e in at.exception]
+    by_label = {n.label: n for n in at.sidebar.number_input}
+    assert {"North (veh/h)", "East (veh/h)", "South (veh/h)", "West (veh/h)"} <= set(by_label)
+    assert any(m.label == "Junction load" for m in at.sidebar.metric)
+    assert not at.sidebar.warning
+    by_label["North (veh/h)"].set_value(1500).run()                        # 1500/1800 + 400/1800 > 1: over capacity
+    assert at.sidebar.warning and not at.exception

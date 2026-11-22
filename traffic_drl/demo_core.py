@@ -25,6 +25,8 @@ SCENARIOS = {
     "Kathmandu mix, tidal": "configs/scenarios/tidal_kt.yaml",
     "Kathmandu mix, peak (slightly over capacity)": "configs/scenarios/kathmandu_peak.yaml",
 }
+CUSTOM = "Build your own traffic (set vehicles per road, vehicle mix, turns)"
+GENERALIST = "models/gen_s3.npz"   # trained on 12 randomised demand patterns: the default agent for traffic it was not trained on
 KEYS = ("fixed", "rule", "dqn")        # the three controllers shown side by side
 CLI_CONTROLLER = {"fixed": "fixed", "rule": "actuated", "dqn": "dqn"}    # the names `traffic-drl run` accepts
 CONTROLLERS = {"fixed": "Fixed-time (40 s per direction)", "rule": "Density rule (like Lalitpur's lights)",
@@ -93,7 +95,7 @@ def resolve_checkpoint(choice: str, scenario_yaml: str) -> str:
     there; anything else is used as chosen. Falls back to the shipped tidal model."""
     if choice != AUTO:
         return choice
-    path = BEST_CHECKPOINT.get(scenario_yaml, ("checkpoints/dqn_final.npz", ""))[0]
+    path = BEST_CHECKPOINT.get(scenario_yaml, (GENERALIST, ""))[0]      # unknown (custom) traffic: the generalist
     return path if (ROOT / path).exists() else "checkpoints/dqn_final.npz"
 
 
@@ -155,3 +157,38 @@ def final_results_markdown() -> str:
     """The consolidated table of the 100-episode comparisons (docs/results_final.md); empty if missing."""
     path = ROOT / "docs" / "results_final.md"
     return path.read_text() if path.exists() else ""
+
+
+def custom_spec(name: str, rates: dict, minutes: float = 30, swap: bool = False, mix_pct: dict = None,
+                turns_pct: dict = None) -> dict:
+    """A junction spec (see traffic_drl.intake) from the playground's controls.
+
+    rates     vehicles per hour per approach {"east", "north", "west", "south"}
+    swap      the busy and quiet axes trade rates halfway (a tidal pattern), as two equal periods
+    mix_pct   {"motorcycle", "car", "bus", "goods"} percentages (any positive total; normalised). All zero -> cars.
+    turns_pct {"left", "right"} percentages of each approach turning
+    """
+    from traffic_drl import intake
+
+    minutes = min(max(float(minutes), 1.0), 30.0)    # the evaluation episode is 30 minutes (episode_length)
+    if swap:
+        half = minutes / 2.0
+        flipped = {"east": rates["north"], "north": rates["east"], "west": rates["south"], "south": rates["west"]}
+        demand = [{"minutes": half, **rates}, {"minutes": half, **flipped}]
+    else:
+        demand = dict(rates)
+    mix = {k: float(v) for k, v in (mix_pct or {}).items() if v and v > 0}
+    spec = {"name": name, "demand": demand,
+            "vehicle_mix": {k: v / sum(mix.values()) for k, v in mix.items()} if mix else "cars"}
+    if not swap:
+        spec["duration_minutes"] = minutes
+    t = turns_pct or {}
+    spec["turns"] = {"left": t.get("left", 0) / 100.0, "right": t.get("right", 0) / 100.0}
+    return spec
+
+
+def build_custom(spec: dict, out_dir: str) -> dict:
+    """Validate and write the playground's traffic; returns intake's result (scenario_yaml, summary, advisories, context)."""
+    from traffic_drl import intake
+
+    return intake.build_scenario(spec, out_dir)
