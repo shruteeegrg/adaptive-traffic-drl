@@ -182,8 +182,8 @@ def main() -> None:
         scenario_label = st.selectbox("Traffic scenario", [core.CUSTOM] + list(core.SCENARIOS))
         built = custom_controls(st) if scenario_label == core.CUSTOM else None
         if scenario_label == core.CUSTOM:
-            st.caption("The default agent for your own traffic is the generalist, trained on 12 random demand "
-                       "patterns. It was not trained on exactly this traffic: that is the honest test.")
+            st.caption("The default agent for your own traffic is the generalist, trained on 30 random "
+                       "client-style patterns (mixed vehicles, turning, quiet to busy). It was not trained on exactly this traffic: that is the honest test.")
         checkpoints = core.list_checkpoints()
         trained = st.session_state.get("trained_model")
         mine = [TRAINED_LABEL] if trained and os.path.exists(trained) else []

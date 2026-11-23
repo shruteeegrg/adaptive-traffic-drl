@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
+    <vTypeDistribution id="mix">
+        <vType id="motorcycle" probability="0.410900" accel="3.0" decel="5.0" sigma="0.5" length="2.2" width="0.8" minGap="1.0" maxSpeed="13.9" vClass="motorcycle"/>
+        <vType id="car" probability="0.412000" accel="2.6" decel="4.5" sigma="0.5" length="5" minGap="2.5" maxSpeed="13.9"/>
+        <vType id="bus" probability="0.055300" accel="1.2" decel="4.0" sigma="0.5" length="12" width="2.5" minGap="2.5" maxSpeed="11.0" vClass="bus"/>
+        <vType id="goods" probability="0.121800" accel="2.0" decel="4.0" sigma="0.5" length="6.5" width="2.1" minGap="2.5" maxSpeed="12.5" vClass="delivery"/>
+    </vTypeDistribution>
+    <route id="east_west" edges="B1A1 A1B3"/>
+    <route id="west_east" edges="B3A1 A1B1"/>
+    <route id="north_south" edges="B2A1 A1B4"/>
+    <route id="south_north" edges="B4A1 A1B2"/>
+    <route id="east_west_left" edges="B1A1 A1B4"/>
+    <route id="west_east_left" edges="B3A1 A1B2"/>
+    <route id="north_south_left" edges="B2A1 A1B1"/>
+    <route id="south_north_left" edges="B4A1 A1B3"/>
+    <flow id="flow_east_west_0" type="mix" route="east_west" begin="0" end="900" vehsPerHour="283.8"/>
+    <flow id="flow_east_west_left_0" type="mix" route="east_west_left" begin="0" end="900" vehsPerHour="46.2"/>
+    <flow id="flow_west_east_0" type="mix" route="west_east" begin="0" end="900" vehsPerHour="318.2"/>
+    <flow id="flow_west_east_left_0" type="mix" route="west_east_left" begin="0" end="900" vehsPerHour="51.8"/>
+    <flow id="flow_north_south_0" type="mix" route="north_south" begin="0" end="900" vehsPerHour="722.4"/>
+    <flow id="flow_north_south_left_0" type="mix" route="north_south_left" begin="0" end="900" vehsPerHour="117.6"/>
+    <flow id="flow_south_north_0" type="mix" route="south_north" begin="0" end="900" vehsPerHour="731"/>
+    <flow id="flow_south_north_left_0" type="mix" route="south_north_left" begin="0" end="900" vehsPerHour="119"/>
+    <flow id="flow_east_west_1" type="mix" route="east_west" begin="900" end="1800" vehsPerHour="722.4"/>
+    <flow id="flow_east_west_left_1" type="mix" route="east_west_left" begin="900" end="1800" vehsPerHour="117.6"/>
+    <flow id="flow_west_east_1" type="mix" route="west_east" begin="900" end="1800" vehsPerHour="731"/>
+    <flow id="flow_west_east_left_1" type="mix" route="west_east_left" begin="900" end="1800" vehsPerHour="119"/>
+    <flow id="flow_north_south_1" type="mix" route="north_south" begin="900" end="1800" vehsPerHour="283.8"/>
+    <flow id="flow_north_south_left_1" type="mix" route="north_south_left" begin="900" end="1800" vehsPerHour="46.2"/>
+    <flow id="flow_south_north_1" type="mix" route="south_north" begin="900" end="1800" vehsPerHour="318.2"/>
+    <flow id="flow_south_north_left_1" type="mix" route="south_north_left" begin="900" end="1800" vehsPerHour="51.8"/>
+</routes>

@@ -46,7 +46,7 @@ episodes on seeds nobody trained or tuned on; the full table with every trained 
   16 cells of a demand-by-unevenness grid, by 20 to 98% (`figures/report/regime_map.png`).
 - A **DQN trained from the rule's demonstrations** (frozen demonstration buffer plus a margin loss) matches the rule, and in
   heavy, uneven or near-capacity traffic some agents are 5 to 14% better. This is seed-dependent: other agents tie or are a few percent worse.
-- A **single model for every demand pattern** does not yet match the rule on unseen demand (negative result; specialists are kept).
+- A **single model for every demand pattern**: trained on cars-only traffic it did not match the rule on unseen demand (negative result). Retrained on client-style traffic (mixed vehicles, turning, quiet to near capacity) the generalist v2 is never significantly worse than the rule on 17 held-out scenarios and better in 6, with caveats on seed luck and on a rule tuned for cars only (`docs/results_generalist_v2.md`).
 - Plain DQN training was unstable and lost to the rule; the demonstrations are what made it reliable.
 
 Limits: one junction, one lane per road, two phases (the phase layout is fixed in code, so a different junction layout needs `GREEN_PHASES` changed); the vehicle mix (62% motorcycles, 22% cars, 8% buses, 8% light goods)

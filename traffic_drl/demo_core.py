@@ -26,7 +26,7 @@ SCENARIOS = {
     "Kathmandu mix, peak (slightly over capacity)": "configs/scenarios/kathmandu_peak.yaml",
 }
 CUSTOM = "Build your own traffic (set vehicles per road, vehicle mix, turns)"
-GENERALIST = "models/gen_s3.npz"   # trained on 12 randomised demand patterns: the default agent for traffic it was not trained on
+GENERALIST = "models/gen_v2.npz"   # trained on 30 randomised client-style patterns (mixed fleets, turning, quiet to near capacity): the default agent for traffic it was not trained on
 KEYS = ("fixed", "rule", "dqn")        # the three controllers shown side by side
 CLI_CONTROLLER = {"fixed": "fixed", "rule": "actuated", "dqn": "dqn"}    # the names `traffic-drl run` accepts
 CONTROLLERS = {"fixed": "Fixed-time (40 s per direction)", "rule": "Density rule (like Lalitpur's lights)",

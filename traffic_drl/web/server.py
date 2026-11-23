@@ -124,7 +124,7 @@ def create_app() -> FastAPI:
         out = []
         if (core.ROOT / core.GENERALIST).exists():
             out.append({"id": "generalist", "label": "Generalist agent",
-                        "note": "Trained on 12 random demand patterns; not on your exact traffic.",
+                        "note": "Trained on 30 randomised client-style patterns (mixed vehicles, turning, quiet to near capacity); not on your exact traffic.",
                         "path": core.GENERALIST})
         jobs = tj.workspace() / "jobs"
         if jobs.exists():
@@ -137,8 +137,11 @@ def create_app() -> FastAPI:
         except (OSError, ValueError, KeyError):
             manifest = {}
         for key, m in manifest.items():
+            if key == "gen2":                      # this is the generalist above
+                continue
             if (core.ROOT / m["default"]).exists():
-                out.append({"id": f"model:{key}", "label": f"Specialist: {key}",
+                out.append({"id": f"model:{key}",
+                            "label": "Earlier generalist (cars-only training)" if key == "gen" else f"Specialist: {key}",
                             "note": f"Trained for {Path(m['scenario']).stem if '/' in m['scenario'] else m['scenario']}.",
                             "path": m["default"]})
         return out

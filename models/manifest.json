@@ -243,6 +243,18 @@
           "selection_score": 4.96
         }
       ]
+    },
+    "gen2": {
+      "scenario": "configs/scenarios/client_pool (30 randomised client-style patterns: quiet to near capacity, mixed fleets, turning)",
+      "source": "runs/gen2 (scripts/train_generalist.py, 8 runs: 4 seeds x hidden 64/128; chosen h64_s1 on the select pool before any test seed was used)",
+      "default": "models/gen_v2.npz",
+      "agents": [
+        {
+          "file": "models/gen_v2.npz",
+          "seed": 1,
+          "selection_score": 4.66
+        }
+      ]
     }
   }
 }

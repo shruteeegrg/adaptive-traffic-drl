@@ -1,0 +1,3 @@
+name: train_24
+description: balanced pattern, heavy axis about 721 veh/h
+route_file: train_24.rou.xml

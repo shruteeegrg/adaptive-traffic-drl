@@ -1,0 +1,3 @@
+name: preset_balanced
+description: web app starting point, default mix and turning
+route_file: preset_balanced.rou.xml
