@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Draw the regime map from a `traffic-drl compare` summary over the grid scenarios.
 
-    python scripts/plot_regime_map.py --summary results_compare_grid/compare_summary.csv \
+    python scripts/plot_regime_map.py --summary results/comparisons/grid/compare_summary.csv \
         --controller rule --reference fixed --out figures/report/regime_map.png
 
 Each cell shows the percentage change in mean total waiting of --controller against --reference

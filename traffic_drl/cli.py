@@ -84,7 +84,7 @@ def build_parser() -> argparse.ArgumentParser:
     sweep.add_argument("--env", choices=["sumo", "toy"], default="sumo")
     sweep.add_argument("--episodes", type=int, help="Override sweep.episodes from the config")
     sweep.add_argument("--seeds", help="Comma-separated seeds, e.g. 0,1,2 (overrides sweep.seeds)")
-    sweep.add_argument("--out-dir", default="sweep_results")
+    sweep.add_argument("--out-dir", default="results/sweep")
 
     evaluate = sub.add_parser("evaluate", help="Evaluate a trained checkpoint on a scenario")
     evaluate.add_argument("--checkpoint", required=True)
@@ -109,7 +109,7 @@ def build_parser() -> argparse.ArgumentParser:
                          help="Also require this absolute change in the metric (default: 2 vehicles, or 1 s for avg_wait_per_vehicle)")
     compare.add_argument("--metric", default="mean_total_waiting",
                          help="Metric to test: mean_total_waiting (default), avg_wait_per_vehicle, throughput_per_hour, switches")
-    compare.add_argument("--out-dir", default="results_compare")
+    compare.add_argument("--out-dir", default="results/compare")
 
     sub.add_parser("demo", help="Launch the interactive Streamlit demo app")
 
@@ -219,7 +219,7 @@ def _train(args) -> int:
     return 0
 
 
-# The density rule tuned on selection seeds (results_tune_actuated); the same settings every comparison uses.
+# The density rule tuned on selection seeds (results/tuning/actuated); the same settings every comparison uses.
 ACTUATED_DEFAULTS = {"min_green": 10.0, "max_green": 40.0, "ratio": 4.0, "gap_queue": 0.0}
 
 

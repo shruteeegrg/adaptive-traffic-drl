@@ -1,9 +1,9 @@
-# Follow-up to results_sweep_rush_a: gamma 0.99 brought rush-hour waiting from
+# Follow-up to results/sweeps/rush_a: gamma 0.99 brought rush-hour waiting from
 # 230-300 down to ~150 (fixed-time is ~140), and two of the best runs peaked at the
 # LAST episode, so they were still improving. Test a longer horizon (gamma 0.995)
 # and longer training (250 episodes), penalty 5 kept.
 # Run:
-#   traffic-drl sweep --config configs/dqn_rush_c.yaml --scenario configs/scenarios/rush_hour.yaml --out-dir results_sweep_rush_c
+#   traffic-drl sweep --config configs/dqn_rush_c.yaml --scenario configs/scenarios/rush_hour.yaml --out-dir results/sweeps/rush_c
 extends: dqn.yaml
 name: intersection_dqn_rush_c
 

@@ -91,7 +91,7 @@ def resolve_scenario(name: str, config_path: str) -> str:
     raise SystemExit(f"scenario '{name}' not found (tried {name} and {candidate})")
 
 
-def run_comparison(config_path, scenarios, controllers, episodes=100, seed_base=30000, out_dir="results_compare",
+def run_comparison(config_path, scenarios, controllers, episodes=100, seed_base=30000, out_dir="results/compare",
                    reference=None, threshold=0.05, min_abs=None, metric=PRIMARY, env_factory=None, log=print,
                    episode_rows_out=None):
     from traffic_drl.agent import evaluate

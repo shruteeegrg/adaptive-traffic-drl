@@ -6,8 +6,8 @@
 #   gradient clipping (grad_clip): no single bad batch can wreck the network
 #   learning-rate decay (lr_decay): smaller steps as training goes on
 # and checkpoint selection uses 5 evaluation episodes instead of 2 (a noisy pick keeps a lucky one).
-#   traffic-drl sweep --config configs/dqn_v_stable.yaml --scenario configs/scenarios/tidal.yaml --out-dir results_sweep_vs_tidal
-#   traffic-drl sweep --config configs/dqn_v_stable.yaml --scenario configs/scenarios/rush_hour.yaml --out-dir results_sweep_vs_rush
+#   traffic-drl sweep --config configs/dqn_v_stable.yaml --scenario configs/scenarios/tidal.yaml --out-dir results/sweeps/vs_tidal
+#   traffic-drl sweep --config configs/dqn_v_stable.yaml --scenario configs/scenarios/rush_hour.yaml --out-dir results/sweeps/vs_rush
 extends: dqn_v.yaml
 name: intersection_dqn_v_stable
 

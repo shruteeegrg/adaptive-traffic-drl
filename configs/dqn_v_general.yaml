@@ -3,7 +3,7 @@
 # heavier axis between 300 and 1300 veh/h per approach (scripts/make_scenario_pool.py, seed 7). Every training
 # episode is a different pattern. The teacher (tuned density rule) demonstrates on the same pool.
 # low_traffic, rush_hour and tidal are NOT in the pool, so they stay a held-out test of generalisation.
-#   traffic-drl sweep --config configs/dqn_v_general.yaml --out-dir results_sweep_vg
+#   traffic-drl sweep --config configs/dqn_v_general.yaml --out-dir results/sweeps/vg
 extends: dqn_v_dqfd.yaml
 name: intersection_dqn_v_general
 

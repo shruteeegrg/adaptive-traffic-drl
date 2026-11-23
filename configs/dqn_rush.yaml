@@ -5,7 +5,7 @@
 #   switch_penalty: 0 vs 5  -- is the switching cost making the agent hesitate?
 #   gamma: 0.95 vs 0.99     -- saturated traffic pays off over longer horizons
 # Run:
-#   traffic-drl sweep --config configs/dqn_rush.yaml --scenario configs/scenarios/rush_hour.yaml --out-dir results_sweep_rush_a
+#   traffic-drl sweep --config configs/dqn_rush.yaml --scenario configs/scenarios/rush_hour.yaml --out-dir results/sweeps/rush_a
 extends: dqn.yaml
 name: intersection_dqn_rush
 

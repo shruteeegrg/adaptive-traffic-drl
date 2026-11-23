@@ -1,7 +1,7 @@
 # Plain DQN against Double DQN (van Hasselt et al., 2016; cited in the literature review via Gu, 2020) on
 # rush hour, with the settings that worked best so far (gamma 0.99, switch penalty 5).
 # Run:
-#   traffic-drl sweep --config configs/dqn_ddqn.yaml --scenario configs/scenarios/rush_hour.yaml --out-dir results_sweep_ddqn
+#   traffic-drl sweep --config configs/dqn_ddqn.yaml --scenario configs/scenarios/rush_hour.yaml --out-dir results/sweeps/ddqn
 extends: dqn.yaml
 name: intersection_dqn_ddqn
 

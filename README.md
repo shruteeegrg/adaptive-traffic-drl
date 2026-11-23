@@ -14,11 +14,11 @@ compares its performance against a standard fixed-time controller.
 **The deliverable is a product, not a script:** `traffic_drl` is an
 installable, config-driven Python package with a CLI (`traffic-drl`) and
 an interactive demo app, not code hardcoded to one intersection file. See
-`DELIVERABLES.md` for the full breakdown — the product is deliverable #0,
+`docs/project/DELIVERABLES.md` for the full breakdown — the product is deliverable #0,
 with the contextual report, dashboard, and final report as supporting
 evidence and documentation of it.
 
-See `Project_Proposal.pdf` (Part 1) for the full abstract, objectives, and
+See `docs/project/Project_Proposal.pdf` (Part 1) for the full abstract, objectives, and
 risk analysis.
 
 ## Quickstart
@@ -55,24 +55,27 @@ is an assumption to be checked against its source; motorcycles queue in single f
 ## Repository structure
 
 ```
-traffic_drl/         installable package
-  cli.py              CLI entry point (train / evaluate / compare / demo)
-  env/                config-driven SUMO/TraCI environment wrapper
-  agent/              Q-table baseline + hand-written MLP + DQN agent (done)
-  baseline/           fixed-time controller and the density-responsive rule (the benchmark to beat)
-  stats.py            Welch / paired t-tests, confidence intervals, effect size (no SciPy)
-  compare.py          head-to-head comparison with statistics (`traffic-drl compare`)
-  viz/                shared plotting (reward, wait time, throughput)
-  app.py              interactive Streamlit demo app
-configs/              SUMO network/route files, hyperparameter + scenario configs
-  scenarios/          rush_hour, low_traffic, tidal, Kathmandu-style (*_kt), grid/ (regime map), pool/ (randomised demand)
-models/               final trained agents (all seeds) and manifest.json (default per scenario, chosen on selection seeds)
-scripts/              route generators, tuning, regime grid, results table and figure builders
-checkpoints/          trained model artifacts (gitignored, except a final shipped checkpoint)
-logs/                 weekly logs (what was done / plan for next week) — one file per week
-docs/                 contextual report, final report, comparative analysis
-tests/                unit tests (agent, environment wrapper)
-pyproject.toml        makes the repo `pip install -e`-able, defines the `traffic-drl` CLI
+traffic_drl/          installable package
+  cli.py               CLI entry point (train / sweep / compare / intake / advise / report / train-job / serve / demo)
+  env/                 config-driven SUMO/TraCI environment wrapper
+  agent/               Q-table baseline + hand-written MLP + DQN agent
+  baseline/            fixed-time controller and the density rule (the benchmark to beat)
+  intake.py advisor.py report.py training_job.py pool.py   the product pipeline: client traffic -> verdict -> report -> own agent
+  web/                 Signal Studio, the FastAPI web app (server.py + static front end)
+  app.py demo_core.py  the earlier Streamlit demo
+  stats.py compare.py sweep.py viz/   statistics, head-to-head comparison, seed sweeps, plots
+configs/               SUMO network/route files, recipes (dqn_*.yaml), scenarios/ (rush_hour, tidal, grid/, pool/, client_pool/)
+models/                shipped trained agents and manifest.json (gen_v2.npz is the default generalist)
+checkpoints/           the few committed checkpoints the demo needs (the rest is gitignored)
+scripts/               pool generators, tuning, generalist training/exam, results table and figure builders
+results/               raw experiment outputs, see results/README.md
+  comparisons/ sweeps/ training/ tuning/
+figures/               figures used in the report (report/) and early training curves
+docs/                  reports, result tables, architecture, project/ (proposal, deliverables, workflow)
+logs/                  weekly logs, one file per week
+tests/                 unit and integration tests
+projects/  runs/       local working folders (client jobs, training runs); gitignored
+pyproject.toml         makes the repo `pip install -e`-able, defines the `traffic-drl` CLI
 ```
 
 ## Workflow
@@ -88,7 +91,7 @@ pyproject.toml        makes the repo `pip install -e`-able, defines the `traffic
 - The weekly log is only considered valid if the corresponding work is
   reflected in commits/PRs in this repo.
 
-See `WORKFLOW.md` for full branch/PR conventions.
+See `docs/project/WORKFLOW.md` for full branch/PR conventions.
 
 ## 10-week plan
 

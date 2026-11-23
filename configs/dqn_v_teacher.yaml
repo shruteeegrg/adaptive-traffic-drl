@@ -4,8 +4,8 @@
 # Q-learning is off-policy, so it can learn from the teacher's transitions; ordinary training (low exploration,
 # 0.1) then tries to improve on the teacher's own objective, vehicles waiting. The seeded policy is evaluated
 # before training starts and kept as a best-checkpoint candidate.
-#   traffic-drl sweep --config configs/dqn_v_teacher.yaml --scenario configs/scenarios/tidal.yaml --out-dir results_sweep_vt_tidal
-#   traffic-drl sweep --config configs/dqn_v_teacher.yaml --scenario configs/scenarios/rush_hour.yaml --out-dir results_sweep_vt_rush
+#   traffic-drl sweep --config configs/dqn_v_teacher.yaml --scenario configs/scenarios/tidal.yaml --out-dir results/sweeps/vt_tidal
+#   traffic-drl sweep --config configs/dqn_v_teacher.yaml --scenario configs/scenarios/rush_hour.yaml --out-dir results/sweeps/vt_rush
 extends: dqn_v_stable.yaml
 name: intersection_dqn_v_teacher
 

@@ -93,7 +93,7 @@
   every 15 min (1100 vs 300 veh/h per approach). A 50/50 timer should struggle
   on the heavy axis there; an adaptive controller can follow the demand.
 
-## Follow-up 4: first full sweep after the reward fix (results_sweep_v2)
+## Follow-up 4: first full sweep after the reward fix (results/sweeps/v2)
 
 - 8 settings x 2 seeds x 80 episodes on rush hour, final-policy evaluation on
   unseen seeds vs the fixed-time baseline (total waiting 139, throughput 3017/h,
@@ -207,16 +207,16 @@
 
 ## Rush-hour and mixed follow-up sweeps (gamma)
 
-- `results_sweep_rush_a`: gamma 0.99 took rush-hour waiting from 230-300 (gamma 0.95) to 145-187 on every seed; spread across seeds fell from +-46..83 to +-11..14. Switch penalty 5 vs 0 mattered little once gamma was right.
-- `results_sweep_rush_b` (backlog weight, exploration decay): no visible effect.
-- `results_sweep_rush_c` (250 episodes, decay 0.98): gamma 0.99 did NOT reproduce (153-304); best checkpoints came at episode 20-30, so longer training looks harmful. Two things changed at once, so the cause is untested.
-- `results_sweep_mixed_g99`: low traffic and tidal fine, rush hour still 280-370 -- one model for all patterns is unsolved.
+- `results/sweeps/rush_a`: gamma 0.99 took rush-hour waiting from 230-300 (gamma 0.95) to 145-187 on every seed; spread across seeds fell from +-46..83 to +-11..14. Switch penalty 5 vs 0 mattered little once gamma was right.
+- `results/sweeps/rush_b` (backlog weight, exploration decay): no visible effect.
+- `results/sweeps/rush_c` (250 episodes, decay 0.98): gamma 0.99 did NOT reproduce (153-304); best checkpoints came at episode 20-30, so longer training looks harmful. Two things changed at once, so the cause is untested.
+- `results/sweeps/mixed_g99`: low traffic and tidal fine, rush hour still 280-370 -- one model for all patterns is unsolved.
 - Fresh-seed check (seeds 30000, 10 episodes): fixed-time rush hour 139.7; best rush checkpoint (gamma 0.995, seed 1) 140.8 -- it MATCHES fixed-time, it does not beat it (rule fixed in advance: must be below 139.7). The checkpoint was picked after seeing four fresh-seed results, so treat the match as slightly optimistic. Mixed seed 2: low traffic 0.5 (fixed 1.5, but 121 switches vs 41), tidal 54.8 (fixed 115).
 - Demo uses the best checkpoint per scenario: tidal `dqn_final`, rush `dqn_rush`, low traffic `dqn_mixed`.
 
 ## Density-responsive baseline: first version was flawed (tuning on selection seeds 20000, 20 episodes)
 
-- `results_tune_actuated` (first real-SUMO run of `compare`; fixed timer reproduces the earlier numbers: tidal 115.2, rush hour 139.2, low traffic 1.49).
+- `results/tuning/actuated` (first real-SUMO run of `compare`; fixed timer reproduces the earlier numbers: tidal 115.2, rush hour 139.2, low traffic 1.49).
 - The first density-responsive controller counted only HALTED vehicles. A lane with green has moving vehicles, so its halted count is about 0 and the controller gapped out as soon as `min_green` ended. Symptoms: `max_green` and `ratio` had no effect (identical results across them), 100 to 138 switches per episode against 41, and waiting 12 to 131 percent WORSE than the fixed timer on tidal and rush hour.
 - Fix: the controller is attached to the environment and counts all vehicles on each approach (`approach_vehicle_counts`, detector-style); the halted-queue fallback is kept only for unit tests. Tuning to be re-run.
 - Low traffic is a genuine win for adaptive control: wait per vehicle 11.0 s (fixed) vs 2.8 s, although vehicles waiting is tiny for both (1.5 vs 0.4), which is why the verdict rule has a per-metric absolute floor and `compare --metric avg_wait_per_vehicle` exists.
@@ -228,7 +228,7 @@
 - A tuned detector rule beats the fixed timer on all three scenarios, including rush hour (about 8 to 10 percent), and beats the original DQN everywhere (DQN numbers are from different seeds: tidal 9.9, rush hour 140.8, low traffic 0.5; to be settled by `compare` on 100 fresh episodes).
 - Likely cause of the DQN's deficit: it sees only halted vehicles, the rule sees all vehicles on the approach. New state feature `vehicles` and `configs/dqn_v.yaml` remove that gap.
 
-## First definitive comparison (`results_compare_v1`: 100 episodes per cell, fresh seeds from 30000, same traffic for every controller)
+## First definitive comparison (`results/comparisons/v1`: 100 episodes per cell, fresh seeds from 30000, same traffic for every controller)
 
 Vehicles waiting, mean +- 95% CI (verdict needs p < 0.05, at least 5 percent and 2 vehicles):
 
@@ -248,7 +248,7 @@ Vehicles waiting, mean +- 95% CI (verdict needs p < 0.05, at least 5 percent and
 - Diagnosis: the input is no longer the limit, training stability is. Next: soft target update, gradient clipping, learning-rate decay, 5-episode checkpoint selection (`dqn_v_stable.yaml`) and seeding the replay buffer with the density rule's experience (`dqn_v_teacher.yaml`).
 - Sweeps now score each run's BEST checkpoint on fresh ranking seeds (20000s), not the last policy.
 
-## Tidal sweeps with the steadier recipe and the teacher (`results_sweep_vs_tidal`, `results_sweep_vt_tidal`; 120 episodes, 4 seeds, 5-episode selection)
+## Tidal sweeps with the steadier recipe and the teacher (`results/sweeps/vs_tidal`, `results/sweeps/vt_tidal`; 120 episodes, 4 seeds, 5-episode selection)
 
 - Best checkpoint on fresh ranking seeds, waiting: stable only 10.1 / 26.1 / 37.2 / 32.9; stable + teacher 23.5 / 12.4 / 19.0 / 13.8 (density rule 7.2, old DQN 10.1, fixed 114).
 - Soft target update, gradient clipping and learning-rate decay alone did not stop the drift (all four runs degrade after episode 10 to 30). Seeding with the teacher kept two of four seeds at about 12 to 18 for all 120 episodes; the other two still drifted (to 64 and 50). Nothing reached the rule, and ordinary Q-learning did not improve on the teacher.
@@ -260,31 +260,31 @@ Vehicles waiting, mean +- 95% CI (verdict needs p < 0.05, at least 5 percent and
 - The fleet shares come from the project plan (MOPIT 2023) and are assumptions until verified against the source. Motorcycles still queue single file (no sublane model), so they take less road but do not filter: a stated limitation.
 - Not yet checked in real SUMO: whether turning vehicles block the single lane (left turners yield to oncoming traffic on the permissive green) and whether all vehicles complete their trips.
 
-## DQfD sweeps (results_sweep_vd_tidal, results_sweep_vd_rush), best checkpoint on selection seeds 20000, mean total waiting
+## DQfD sweeps (results/sweeps/vd_tidal, results/sweeps/vd_rush), best checkpoint on selection seeds 20000, mean total waiting
 - Tidal: plain 7.2 / 7.5 / 7.0 / 6.7, Double 6.9 / 6.8 / 6.7 / 6.3 (tuned density rule 7.3 on the same seeds; stable+teacher without the frozen buffer was 12 to 37).
 - Rush hour: plain 121.9 / 123.8 / 122.3 / 120.8, Double 125.5 / 122.5 / 116.2 / 120.4 (rule 127.7, fixed about 138).
 - All 16 runs are at or below the rule on selection seeds. Not yet tested on the 30000 seeds with 100 episodes.
 
-## Kathmandu scenario check (results_compare_kt, 20 episodes, fixed vs fixed30 vs tuned rule)
+## Kathmandu scenario check (results/comparisons/kt, 20 episodes, fixed vs fixed30 vs tuned rule)
 - rush_hour_kt (900/approach) and kathmandu_peak (1100/approach) discharged almost the same flow (1823 and 1829 veh/h), against 3025 veh/h for the cars-only rush_hour at the same 900. With turns and the mixed fleet the single-lane junction saturates at about 1830 veh/h in total (about 460 per approach). Both scenarios are far over capacity, so waiting is mostly backlog and the controller barely matters.
 - The tuned rule equals the fixed timer exactly there (432.7 and 631.1, 41 switches): with demand on both axes it only switches at max_green.
 - Where the junction is not saturated the rule works: tidal_kt -20% (better), low_traffic_kt wait per vehicle 16.1 s -> 3.7 s.
 - Day 2 gate: the 900 and 1100 demand levels were a bad calibration, not a meaningful peak. Added kt_load_300/400/500/600 around the measured capacity, and two diagnostics (diag_fleet_only_900, diag_turns_only_900) to separate the effect of the fleet from that of turns.
 
-## Capacity calibration (results_compare_kt_calib, 10 episodes, fixed vs tuned rule)
+## Capacity calibration (results/comparisons/kt_calib, 10 episodes, fixed vs tuned rule)
 - Turns are what cut the capacity, not the fleet: cars straight 3025 veh/h, mixed fleet straight 3232, cars with 15%+15% turns 1650, fleet with turns about 1820.
 - With turns, load 300/400/500/600 per approach: waiting fixed 5.0/11.5/66.6/148.8, rule 3.4/8.3/65.6/143.3. The rule helps at 300 and 400, ties at 500 and above. Junction capacity is about 1,800 veh/h in total.
 - rush_hour_kt is now 400 per approach and kathmandu_peak 500 (mildly oversaturated). tidal_kt (1100/300) stays: the rule is 20% better than fixed there, so controllers differ. kt_load_* stay as the calibration curve.
 
 ## 100-episode tests on fresh seeds (seeds 30000, reference = tuned rule)
-- DQfD specialists, cars only (results_compare_dqfd_*): tidal rule 7.2, agents 6.9 to 7.4; rush hour rule 126.6, agents 122.2 to 126.6 (3 of 4 about 3% better, below the practical threshold). Fixed is far behind in both.
-- DQfD specialists, Kathmandu set (results_compare_dqk_*): tidal_kt rule 237.0, agents 234 to 244; rush_hour_kt (400) rule 8.8, agents 7.6 to 8.0 (-9% to -14%, wait per vehicle 18.7 s -> 16.2 to 17.0 s, below the 2-vehicle floor on total waiting); kathmandu_peak rule 68.9, agents 67 to 73 (tie).
-- Generalist trained on 12 randomised patterns (results_compare_general), held-out scenarios: tidal 5.9 to 8.6 (rule 7.2), rush_hour 128 to 145 (rule 126.6), low_traffic 0.9 to 1.2 (rule 0.2). Does not match the rule on unseen demand: negative result, specialists kept. In all four generalist seeds the best checkpoint was the policy right after teacher imitation (episode 0); later training did not improve it. In the cars-only rush hour sweep the learning stage did improve on the imitation (127 to 141 -> 119 to 123).
+- DQfD specialists, cars only (results/comparisons/dqfd_*): tidal rule 7.2, agents 6.9 to 7.4; rush hour rule 126.6, agents 122.2 to 126.6 (3 of 4 about 3% better, below the practical threshold). Fixed is far behind in both.
+- DQfD specialists, Kathmandu set (results/comparisons/dqk_*): tidal_kt rule 237.0, agents 234 to 244; rush_hour_kt (400) rule 8.8, agents 7.6 to 8.0 (-9% to -14%, wait per vehicle 18.7 s -> 16.2 to 17.0 s, below the 2-vehicle floor on total waiting); kathmandu_peak rule 68.9, agents 67 to 73 (tie).
+- Generalist trained on 12 randomised patterns (results/comparisons/general), held-out scenarios: tidal 5.9 to 8.6 (rule 7.2), rush_hour 128 to 145 (rule 126.6), low_traffic 0.9 to 1.2 (rule 0.2). Does not match the rule on unseen demand: negative result, specialists kept. In all four generalist seeds the best checkpoint was the policy right after teacher imitation (episode 0); later training did not improve it. In the cars-only rush hour sweep the learning stage did improve on the imitation (127 to 141 -> 119 to 123).
 
-## Regime map (results_compare_grid, fixed vs tuned rule, 30 episodes per cell, figures/report/regime_map.png)
+## Regime map (results/comparisons/grid, fixed vs tuned rule, 30 episodes per cell, figures/report/regime_map.png)
 - The rule beats the fixed timer in all 16 cells (demand 200 to 800 veh/h per approach, NS:EW 1 to 8). Change in mean total waiting: -88% to -92% at 200; -41% to -75% at 400; -36% to -98% at 600; -20% to -70% at 800. The smallest gains are at balanced demand near capacity (800 even: 43.5 -> 34.9); the largest where the load is uneven and high (600 at 8:1: 151.0 -> 3.4).
 - Where the rule still leaves most waiting (800 per approach: 34.9 / 47.8 / 76.1 / 119.6 at ratios 1/2/4/8) is where a learned controller has the most room: next test.
 
-## Heavy uneven cells (results_compare_dqh_*, 100 episodes, reference = rule) and the consolidated table
+## Heavy uneven cells (results/comparisons/dqh_*, 100 episodes, reference = rule) and the consolidated table
 - 800 per approach at 2:1 / 4:1 / 8:1: rule 48.2 / 75.8 / 119.0; DQfD agents +0.8%, +5.2%, -2.5%, +2.9% / -2.0%, -9.7%, -5.3%, +6.1% / -1.5%, -0.1%, -11.2%, 0.0%. Three agents better, two worse, the rest tie or small: seed-dependent. Average agent vs rule +1.6% / -2.7% / -3.2%.
 - scripts/build_results.py now writes docs/results_final.md and figures/report/final_results.png from the saved compare folders (every trained agent, not only the best).

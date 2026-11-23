@@ -16,7 +16,7 @@ an environment. Counting only *halted* vehicles (the learning agents' queue feat
 is wrong for this rule: while a lane has green its vehicles are moving, so its halted
 count is about zero and the controller gaps out almost immediately. The first version
 of this controller did exactly that and lost badly to the fixed timer (see
-results_tune_actuated); without an attached environment it still falls back to the
+results/tuning/actuated); without an attached environment it still falls back to the
 halted-queue state so it can be unit tested.
 
 It has the same act() interface as the learning agents, so the same evaluate() loop

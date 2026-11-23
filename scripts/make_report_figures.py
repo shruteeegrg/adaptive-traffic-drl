@@ -3,7 +3,7 @@
     python scripts/make_report_figures.py
 
 Writes PNGs to figures/report/. Nothing here is typed in by hand: bars and dots come from
-the CSVs in figures/ and results_sweep_rush_a/.
+the CSVs in figures/ and results/sweeps/rush_a/.
 """
 import csv
 import os
@@ -97,7 +97,7 @@ def scenario_demand(dark=False):
 
 # 3. effect of gamma on rush hour (sweep A) ------------------------------------------
 def gamma_effect(dark=False):
-    rows = list(csv.DictReader(open(os.path.join(ROOT, "results_sweep_rush_a", "sweep_runs.csv"))))
+    rows = list(csv.DictReader(open(os.path.join(ROOT, "results/sweeps/rush_a", "sweep_runs.csv"))))
     fig, ax = plt.subplots(figsize=(7.5, 5.0))
     fg = style(ax, dark)
     for i, g in enumerate(("0.95", "0.99")):

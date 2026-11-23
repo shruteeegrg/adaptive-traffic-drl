@@ -3,7 +3,7 @@
   "models": {
     "dqfd_tidal": {
       "scenario": "configs/scenarios/tidal.yaml",
-      "source": "results_sweep_vd_tidal",
+      "source": "results/sweeps/vd_tidal",
       "default": "models/dqfd_tidal_s3.npz",
       "agents": [
         {
@@ -30,7 +30,7 @@
     },
     "dqfd_rush": {
       "scenario": "configs/scenarios/rush_hour.yaml",
-      "source": "results_sweep_vd_rush",
+      "source": "results/sweeps/vd_rush",
       "default": "models/dqfd_rush_s2.npz",
       "agents": [
         {
@@ -57,7 +57,7 @@
     },
     "dqh_r2": {
       "scenario": "configs/scenarios/grid/grid_d800_r2.yaml",
-      "source": "results_sweep_vh_r2",
+      "source": "results/sweeps/vh_r2",
       "default": "models/dqh_r2_s3.npz",
       "agents": [
         {
@@ -84,7 +84,7 @@
     },
     "dqh_r4": {
       "scenario": "configs/scenarios/grid/grid_d800_r4.yaml",
-      "source": "results_sweep_vh_r4",
+      "source": "results/sweeps/vh_r4",
       "default": "models/dqh_r4_s0.npz",
       "agents": [
         {
@@ -111,7 +111,7 @@
     },
     "dqh_r8": {
       "scenario": "configs/scenarios/grid/grid_d800_r8.yaml",
-      "source": "results_sweep_vh_r8",
+      "source": "results/sweeps/vh_r8",
       "default": "models/dqh_r8_s2.npz",
       "agents": [
         {
@@ -138,7 +138,7 @@
     },
     "dqk_tidal": {
       "scenario": "configs/scenarios/tidal_kt.yaml",
-      "source": "results_sweep_vk_tidal",
+      "source": "results/sweeps/vk_tidal",
       "default": "models/dqk_tidal_s1.npz",
       "agents": [
         {
@@ -165,7 +165,7 @@
     },
     "dqk_rush": {
       "scenario": "configs/scenarios/rush_hour_kt.yaml",
-      "source": "results_sweep_vk_rush",
+      "source": "results/sweeps/vk_rush",
       "default": "models/dqk_rush_s3.npz",
       "agents": [
         {
@@ -192,7 +192,7 @@
     },
     "dqk_peak": {
       "scenario": "configs/scenarios/kathmandu_peak.yaml",
-      "source": "results_sweep_vk_peak",
+      "source": "results/sweeps/vk_peak",
       "default": "models/dqk_peak_s1.npz",
       "agents": [
         {
@@ -219,7 +219,7 @@
     },
     "gen": {
       "scenario": "configs/scenarios/pool (12 randomised patterns)",
-      "source": "results_sweep_vg",
+      "source": "results/sweeps/vg",
       "default": "models/gen_s3.npz",
       "agents": [
         {
