@@ -18,15 +18,15 @@ import matplotlib.pyplot as plt  # noqa: E402
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # (folder, what the agents were trained on)
 SOURCES = [
-    ("results_compare_dqfd_tidal", "specialist, cars"),
-    ("results_compare_dqfd_rush", "specialist, cars"),
-    ("results_compare_dqh_r2", "specialist, cars"),
-    ("results_compare_dqh_r4", "specialist, cars"),
-    ("results_compare_dqh_r8", "specialist, cars"),
-    ("results_compare_dqk_tidal", "specialist, Kathmandu mix"),
-    ("results_compare_dqk_rush", "specialist, Kathmandu mix"),
-    ("results_compare_dqk_peak", "specialist, Kathmandu mix"),
-    ("results_compare_general", "generalist, 12 random patterns (held out)"),
+    ("results/comparisons/dqfd_tidal", "specialist, cars"),
+    ("results/comparisons/dqfd_rush", "specialist, cars"),
+    ("results/comparisons/dqh_r2", "specialist, cars"),
+    ("results/comparisons/dqh_r4", "specialist, cars"),
+    ("results/comparisons/dqh_r8", "specialist, cars"),
+    ("results/comparisons/dqk_tidal", "specialist, Kathmandu mix"),
+    ("results/comparisons/dqk_rush", "specialist, Kathmandu mix"),
+    ("results/comparisons/dqk_peak", "specialist, Kathmandu mix"),
+    ("results/comparisons/general", "generalist, 12 random patterns (held out)"),
 ]
 AGENT = re.compile(r"(.+)_s(\d+)")
 

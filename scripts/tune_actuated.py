@@ -31,7 +31,7 @@ def main(argv=None, env_factory=None):
     ap.add_argument("--ratio", default="1.5,2.5")
     ap.add_argument("--gap", default="0")
     ap.add_argument("--fixed-greens", default="", help="also tune the fixed timer's green seconds, e.g. 20,30,50,60 (40 is always included)")
-    ap.add_argument("--out-dir", default="results_tune_actuated")
+    ap.add_argument("--out-dir", default="results/tuning/actuated")
     args = ap.parse_args(argv)
 
     grid = list(itertools.product(args.min_green.split(","), args.max_green.split(","),

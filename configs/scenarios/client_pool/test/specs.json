@@ -1,0 +1,361 @@
+[
+ {
+  "name": "test_00",
+  "description": "balanced pattern, heavy axis about 116 veh/h",
+  "demand": {
+   "north": 130,
+   "south": 120,
+   "east": 100,
+   "west": 100
+  },
+  "vehicle_mix": "cars",
+  "turns": {
+   "left": 0.08,
+   "right": 0.14
+  },
+  "duration_minutes": 30
+ },
+ {
+  "name": "test_01",
+  "description": "uneven pattern, heavy axis about 331 veh/h",
+  "demand": {
+   "north": 290,
+   "south": 300,
+   "east": 100,
+   "west": 100
+  },
+  "vehicle_mix": {
+   "motorcycle": 0.4313,
+   "car": 0.4373,
+   "bus": 0.0825,
+   "goods": 0.0489
+  },
+  "turns": {
+   "left": 0.18,
+   "right": 0.0
+  },
+  "duration_minutes": 30
+ },
+ {
+  "name": "test_02",
+  "description": "flipping pattern, heavy axis about 783 veh/h",
+  "demand": [
+   {
+    "minutes": 15.0,
+    "north": 940,
+    "south": 820,
+    "east": 160,
+    "west": 150
+   },
+   {
+    "minutes": 15.0,
+    "north": 160,
+    "east": 940,
+    "south": 150,
+    "west": 820
+   }
+  ],
+  "vehicle_mix": "cars",
+  "turns": {
+   "left": 0.18,
+   "right": 0.03
+  }
+ },
+ {
+  "name": "test_03",
+  "description": "balanced pattern, heavy axis about 1278 veh/h",
+  "demand": {
+   "north": 1360,
+   "south": 1400,
+   "east": 1180,
+   "west": 970
+  },
+  "vehicle_mix": "cars",
+  "turns": {
+   "left": 0.08,
+   "right": 0.06
+  },
+  "duration_minutes": 30
+ },
+ {
+  "name": "test_04",
+  "description": "uneven pattern, heavy axis about 967 veh/h",
+  "demand": {
+   "north": 200,
+   "south": 180,
+   "east": 1050,
+   "west": 770
+  },
+  "vehicle_mix": {
+   "motorcycle": 0.424,
+   "car": 0.2634,
+   "bus": 0.1622,
+   "goods": 0.1504
+  },
+  "turns": {
+   "left": 0.0,
+   "right": 0.11
+  },
+  "duration_minutes": 30
+ },
+ {
+  "name": "test_05",
+  "description": "flipping pattern, heavy axis about 164 veh/h",
+  "demand": [
+   {
+    "minutes": 15.0,
+    "north": 180,
+    "south": 140,
+    "east": 30,
+    "west": 30
+   },
+   {
+    "minutes": 15.0,
+    "north": 30,
+    "east": 180,
+    "south": 30,
+    "west": 140
+   }
+  ],
+  "vehicle_mix": {
+   "motorcycle": 0.5087,
+   "car": 0.3754,
+   "bus": 0.0294,
+   "goods": 0.0865
+  }
+ },
+ {
+  "name": "test_06",
+  "description": "balanced pattern, heavy axis about 462 veh/h",
+  "demand": {
+   "north": 500,
+   "south": 360,
+   "east": 540,
+   "west": 460
+  },
+  "vehicle_mix": "cars",
+  "turns": {
+   "left": 0.18,
+   "right": 0.09
+  },
+  "duration_minutes": 30
+ },
+ {
+  "name": "test_07",
+  "description": "uneven pattern, heavy axis about 185 veh/h",
+  "demand": {
+   "north": 40,
+   "south": 30,
+   "east": 210,
+   "west": 190
+  },
+  "vehicle_mix": "cars",
+  "turns": {
+   "left": 0.03,
+   "right": 0.16
+  },
+  "duration_minutes": 30
+ },
+ {
+  "name": "test_08",
+  "description": "flipping pattern, heavy axis about 141 veh/h",
+  "demand": [
+   {
+    "minutes": 15.0,
+    "north": 30,
+    "south": 30,
+    "east": 160,
+    "west": 130
+   },
+   {
+    "minutes": 15.0,
+    "north": 160,
+    "east": 30,
+    "south": 130,
+    "west": 30
+   }
+  ],
+  "vehicle_mix": {
+   "motorcycle": 0.5834,
+   "car": 0.2012,
+   "bus": 0.0936,
+   "goods": 0.1218
+  }
+ },
+ {
+  "name": "test_09",
+  "description": "balanced pattern, heavy axis about 321 veh/h",
+  "demand": {
+   "north": 340,
+   "south": 290,
+   "east": 290,
+   "west": 320
+  },
+  "vehicle_mix": "cars",
+  "turns": {
+   "left": 0.15,
+   "right": 0.17
+  },
+  "duration_minutes": 30
+ },
+ {
+  "name": "test_10",
+  "description": "uneven pattern, heavy axis about 126 veh/h",
+  "demand": {
+   "north": 140,
+   "south": 110,
+   "east": 30,
+   "west": 30
+  },
+  "vehicle_mix": "cars",
+  "turns": {
+   "left": 0.1,
+   "right": 0.08
+  },
+  "duration_minutes": 30
+ },
+ {
+  "name": "test_11",
+  "description": "flipping pattern, heavy axis about 351 veh/h",
+  "demand": [
+   {
+    "minutes": 15.0,
+    "north": 370,
+    "south": 350,
+    "east": 70,
+    "west": 70
+   },
+   {
+    "minutes": 15.0,
+    "north": 70,
+    "east": 370,
+    "south": 70,
+    "west": 350
+   }
+  ],
+  "vehicle_mix": {
+   "motorcycle": 0.6223,
+   "car": 0.2381,
+   "bus": 0.0444,
+   "goods": 0.0952
+  },
+  "turns": {
+   "left": 0.0,
+   "right": 0.2
+  }
+ },
+ {
+  "name": "preset_balanced",
+  "description": "web app starting point, default mix and turning",
+  "demand": {
+   "north": 500,
+   "east": 500,
+   "south": 500,
+   "west": 500
+  },
+  "vehicle_mix": {
+   "motorcycle": 0.62,
+   "car": 0.22,
+   "bus": 0.08,
+   "goods": 0.08
+  },
+  "turns": {
+   "left": 0.1,
+   "right": 0.1
+  },
+  "duration_minutes": 30
+ },
+ {
+  "name": "preset_morning_rush",
+  "description": "web app starting point, default mix and turning",
+  "demand": {
+   "north": 800,
+   "east": 350,
+   "south": 800,
+   "west": 350
+  },
+  "vehicle_mix": {
+   "motorcycle": 0.62,
+   "car": 0.22,
+   "bus": 0.08,
+   "goods": 0.08
+  },
+  "turns": {
+   "left": 0.1,
+   "right": 0.1
+  },
+  "duration_minutes": 30
+ },
+ {
+  "name": "preset_tidal_swing",
+  "description": "web app starting point, default mix and turning",
+  "demand": [
+   {
+    "minutes": 15.0,
+    "north": 900,
+    "east": 300,
+    "south": 900,
+    "west": 300
+   },
+   {
+    "minutes": 15.0,
+    "north": 300,
+    "east": 900,
+    "south": 300,
+    "west": 900
+   }
+  ],
+  "vehicle_mix": {
+   "motorcycle": 0.62,
+   "car": 0.22,
+   "bus": 0.08,
+   "goods": 0.08
+  },
+  "turns": {
+   "left": 0.1,
+   "right": 0.1
+  }
+ },
+ {
+  "name": "preset_near_capacity",
+  "description": "web app starting point, default mix and turning",
+  "demand": {
+   "north": 850,
+   "east": 850,
+   "south": 850,
+   "west": 850
+  },
+  "vehicle_mix": {
+   "motorcycle": 0.62,
+   "car": 0.22,
+   "bus": 0.08,
+   "goods": 0.08
+  },
+  "turns": {
+   "left": 0.1,
+   "right": 0.1
+  },
+  "duration_minutes": 30
+ },
+ {
+  "name": "preset_quiet",
+  "description": "web app starting point, default mix and turning",
+  "demand": {
+   "north": 120,
+   "east": 120,
+   "south": 120,
+   "west": 120
+  },
+  "vehicle_mix": {
+   "motorcycle": 0.62,
+   "car": 0.22,
+   "bus": 0.08,
+   "goods": 0.08
+  },
+  "turns": {
+   "left": 0.1,
+   "right": 0.1
+  },
+  "duration_minutes": 30
+ }
+]

@@ -9,7 +9,7 @@
 # The sweep also tests whether the phase-switch penalty (5 cost units in dqn.yaml)
 # caused the light-traffic failure: with a heavy penalty, one waiting car is not
 # worth a switch. Run:
-#   traffic-drl sweep --config configs/dqn_mixed.yaml --out-dir results_sweep_mixed
+#   traffic-drl sweep --config configs/dqn_mixed.yaml --out-dir results/sweeps/mixed
 extends: dqn.yaml
 name: intersection_dqn_mixed
 

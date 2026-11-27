@@ -43,6 +43,8 @@ if "SUMO_HOME" in os.environ:
 
 import traci  # noqa: E402  (import after sys.path setup, see above)
 
+# Known limit: the two-phase layout is fixed in code, not read from the config. The junction, lanes, edges and
+# timings are config-driven, but a junction with a different phase layout needs these two tables changed.
 GREEN_PHASES = {0: 0, 1: 2}  # action -> tlLogic phase index (see intersection.yaml)
 YELLOW_FOR = {0: 3, 2: 1}    # green phase index -> the yellow phase that clears it
 
@@ -151,13 +153,14 @@ class TraciEnv:
         self._green_seconds[action] += self.decision_interval
         self._phase_elapsed = self.decision_interval if switched else self._phase_elapsed + self.decision_interval
         self._action = action
-        state = self._get_state()
+        state = self._get_state(cached=True)
         reward = features.compute_reward(self.reward_cfg, self._step_cost, switched)
-        done = (
-            self._elapsed >= self.episode_length
-            or traci.simulation.getMinExpectedNumber() == 0
-        )
-        info = {"elapsed": self._elapsed, **self.metrics()}
+        timed_out = self._elapsed >= self.episode_length
+        emptied = traci.simulation.getMinExpectedNumber() == 0
+        done = timed_out or emptied
+        # truncated: the episode was cut off by the time limit while traffic was still flowing, so the
+        # last state is not a real terminal state (agents may keep bootstrapping from it).
+        info = {"elapsed": self._elapsed, "truncated": timed_out and not emptied, **self.metrics()}
         return state, reward, done, info
 
     def _reset_metrics(self):
@@ -240,9 +243,10 @@ class TraciEnv:
         Not part of the learning state; the density-responsive baseline reads it."""
         return [traci.edge.getLastStepVehicleNumber(a["incoming_edge"]) for a in self.approaches]
 
-    def _read_edges(self):
+    def _read_edges(self, cached: bool = False):
         edges = [a["incoming_edge"] for a in self.approaches]
-        queues = [traci.edge.getLastStepHaltingNumber(e) for e in edges]
+        # cached: _advance() already read these halting counts on the last simulated second (same values).
+        queues = list(self._last_queues) if cached else [traci.edge.getLastStepHaltingNumber(e) for e in edges]
         waits = (
             [traci.edge.getWaitingTime(e) for e in edges]
             if "waiting_time" in self.state_cfg["features"]
@@ -250,8 +254,8 @@ class TraciEnv:
         )
         return queues, waits
 
-    def _get_state(self) -> np.ndarray:
-        queues, waits = self._read_edges()
+    def _get_state(self, cached: bool = False) -> np.ndarray:
+        queues, waits = self._read_edges(cached)
         backlog = (
             len(traci.simulation.getPendingVehicles()) if "backlog" in self.state_cfg["features"] else 0.0
         )

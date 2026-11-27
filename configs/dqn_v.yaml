@@ -1,9 +1,9 @@
 # DQN that sees what a roadside detector sees: the usual features plus the number of ALL vehicles on
 # each approach (moving ones included). The density-responsive baseline already had this information
-# and beat the original DQN (results_tune_actuated), so this removes an unfair information gap.
+# and beat the original DQN (results/tuning/actuated), so this removes an unfair information gap.
 # Inherits everything else from dqn.yaml; uses the recipe that worked best so far (gamma 0.99).
-#   traffic-drl sweep --config configs/dqn_v.yaml --scenario configs/scenarios/tidal.yaml --out-dir results_sweep_v_tidal
-#   traffic-drl sweep --config configs/dqn_v.yaml --scenario configs/scenarios/rush_hour.yaml --out-dir results_sweep_v_rush
+#   traffic-drl sweep --config configs/dqn_v.yaml --scenario configs/scenarios/tidal.yaml --out-dir results/sweeps/v_tidal
+#   traffic-drl sweep --config configs/dqn_v.yaml --scenario configs/scenarios/rush_hour.yaml --out-dir results/sweeps/v_rush
 extends: dqn.yaml
 name: intersection_dqn_v
 

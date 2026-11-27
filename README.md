@@ -14,18 +14,19 @@ compares its performance against a standard fixed-time controller.
 **The deliverable is a product, not a script:** `traffic_drl` is an
 installable, config-driven Python package with a CLI (`traffic-drl`) and
 an interactive demo app, not code hardcoded to one intersection file. See
-`DELIVERABLES.md` for the full breakdown — the product is deliverable #0,
+`docs/project/DELIVERABLES.md` for the full breakdown — the product is deliverable #0,
 with the contextual report, dashboard, and final report as supporting
 evidence and documentation of it.
 
-See `Project_Proposal.pdf` (Part 1) for the full abstract, objectives, and
+See `docs/project/Project_Proposal.pdf` (Part 1) for the full abstract, objectives, and
 risk analysis.
 
 ## Quickstart
 
 ```bash
 pip install -e ".[sumo]"               # the [sumo] extra installs the SUMO simulator itself (eclipse-sumo)
-traffic-drl demo                       # interactive app: fixed timer vs density rule vs DQN, side by side (needs SUMO)
+traffic-drl serve                      # Signal Studio, the client web app: build traffic, compare live, get a verdict and report, train an agent (needs SUMO)
+traffic-drl demo                       # the earlier Streamlit demo: fixed timer vs density rule vs DQN, side by side (needs SUMO)
 traffic-drl compare --config configs/dqn_v_dqfd.yaml --scenarios tidal,rush_hour \
     --controller fixed --controller "rule=actuated:min=10,max=40,ratio=4,gap=0" \
     --controller dqn=dqn:models/dqfd_rush_s2.npz@configs/dqn_v_dqfd.yaml \
@@ -45,33 +46,36 @@ episodes on seeds nobody trained or tuned on; the full table with every trained 
   16 cells of a demand-by-unevenness grid, by 20 to 98% (`figures/report/regime_map.png`).
 - A **DQN trained from the rule's demonstrations** (frozen demonstration buffer plus a margin loss) matches the rule, and in
   heavy, uneven or near-capacity traffic some agents are 5 to 14% better. This is seed-dependent: other agents tie or are a few percent worse.
-- A **single model for every demand pattern** does not yet match the rule on unseen demand (negative result; specialists are kept).
+- A **single model for every demand pattern**: trained on cars-only traffic it did not match the rule on unseen demand (negative result). Retrained on client-style traffic (mixed vehicles, turning, quiet to near capacity) the generalist v2 is never significantly worse than the rule on 17 held-out scenarios and better in 6, with caveats on seed luck and on a rule tuned for cars only (`docs/results_generalist_v2.md`).
 - Plain DQN training was unstable and lost to the rule; the demonstrations are what made it reliable.
 
-Limits: one junction, one lane per road, two phases; the vehicle mix (62% motorcycles, 22% cars, 8% buses, 8% light goods)
+Limits: one junction, one lane per road, two phases (the phase layout is fixed in code, so a different junction layout needs `GREEN_PHASES` changed); the vehicle mix (62% motorcycles, 22% cars, 8% buses, 8% light goods)
 is an assumption to be checked against its source; motorcycles queue in single file; the rule was tuned on cars-only traffic.
 
 ## Repository structure
 
 ```
-traffic_drl/         installable package
-  cli.py              CLI entry point (train / evaluate / compare / demo)
-  env/                config-driven SUMO/TraCI environment wrapper
-  agent/              Q-table baseline + hand-written MLP + DQN agent (done)
-  baseline/           fixed-time controller and the density-responsive rule (the benchmark to beat)
-  stats.py            Welch / paired t-tests, confidence intervals, effect size (no SciPy)
-  compare.py          head-to-head comparison with statistics (`traffic-drl compare`)
-  viz/                shared plotting (reward, wait time, throughput)
-  app.py              interactive Streamlit demo app
-configs/              SUMO network/route files, hyperparameter + scenario configs
-  scenarios/          rush_hour, low_traffic, tidal, Kathmandu-style (*_kt), grid/ (regime map), pool/ (randomised demand)
-models/               final trained agents (all seeds) and manifest.json (default per scenario, chosen on selection seeds)
-scripts/              route generators, tuning, regime grid, results table and figure builders
-checkpoints/          trained model artifacts (gitignored, except a final shipped checkpoint)
-logs/                 weekly logs (what was done / plan for next week) — one file per week
-docs/                 contextual report, final report, comparative analysis
-tests/                unit tests (agent, environment wrapper)
-pyproject.toml        makes the repo `pip install -e`-able, defines the `traffic-drl` CLI
+traffic_drl/          installable package
+  cli.py               CLI entry point (train / sweep / compare / intake / advise / report / train-job / serve / demo)
+  env/                 config-driven SUMO/TraCI environment wrapper
+  agent/               Q-table baseline + hand-written MLP + DQN agent
+  baseline/            fixed-time controller and the density rule (the benchmark to beat)
+  intake.py advisor.py report.py training_job.py pool.py   the product pipeline: client traffic -> verdict -> report -> own agent
+  web/                 Signal Studio, the FastAPI web app (server.py + static front end)
+  app.py demo_core.py  the earlier Streamlit demo
+  stats.py compare.py sweep.py viz/   statistics, head-to-head comparison, seed sweeps, plots
+configs/               SUMO network/route files, recipes (dqn_*.yaml), scenarios/ (rush_hour, tidal, grid/, pool/, client_pool/)
+models/                shipped trained agents and manifest.json (gen_v2.npz is the default generalist)
+checkpoints/           the few committed checkpoints the demo needs (the rest is gitignored)
+scripts/               pool generators, tuning, generalist training/exam, results table and figure builders
+results/               raw experiment outputs, see results/README.md
+  comparisons/ sweeps/ training/ tuning/
+figures/               figures used in the report (report/) and early training curves
+docs/                  reports, result tables, architecture, project/ (proposal, deliverables, workflow)
+logs/                  weekly logs, one file per week
+tests/                 unit and integration tests
+projects/  runs/       local working folders (client jobs, training runs); gitignored
+pyproject.toml         makes the repo `pip install -e`-able, defines the `traffic-drl` CLI
 ```
 
 ## Workflow
@@ -87,7 +91,7 @@ pyproject.toml        makes the repo `pip install -e`-able, defines the `traffic
 - The weekly log is only considered valid if the corresponding work is
   reflected in commits/PRs in this repo.
 
-See `WORKFLOW.md` for full branch/PR conventions.
+See `docs/project/WORKFLOW.md` for full branch/PR conventions.
 
 ## 10-week plan
 

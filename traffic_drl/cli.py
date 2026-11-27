@@ -25,6 +25,8 @@ Build order (see README.md 10-week plan):
 """
 
 import argparse
+import json
+import os
 import sys
 
 
@@ -82,7 +84,7 @@ def build_parser() -> argparse.ArgumentParser:
     sweep.add_argument("--env", choices=["sumo", "toy"], default="sumo")
     sweep.add_argument("--episodes", type=int, help="Override sweep.episodes from the config")
     sweep.add_argument("--seeds", help="Comma-separated seeds, e.g. 0,1,2 (overrides sweep.seeds)")
-    sweep.add_argument("--out-dir", default="sweep_results")
+    sweep.add_argument("--out-dir", default="results/sweep")
 
     evaluate = sub.add_parser("evaluate", help="Evaluate a trained checkpoint on a scenario")
     evaluate.add_argument("--checkpoint", required=True)
@@ -107,9 +109,40 @@ def build_parser() -> argparse.ArgumentParser:
                          help="Also require this absolute change in the metric (default: 2 vehicles, or 1 s for avg_wait_per_vehicle)")
     compare.add_argument("--metric", default="mean_total_waiting",
                          help="Metric to test: mean_total_waiting (default), avg_wait_per_vehicle, throughput_per_hour, switches")
-    compare.add_argument("--out-dir", default="results_compare")
+    compare.add_argument("--out-dir", default="results/compare")
 
     sub.add_parser("demo", help="Launch the interactive Streamlit demo app")
+
+    advise = sub.add_parser("advise", help="Evaluate a junction's traffic under the candidate controllers and recommend one")
+    src = advise.add_mutually_exclusive_group(required=True)
+    src.add_argument("--spec", help="Junction spec YAML (runs intake first)")
+    src.add_argument("--scenario", help="An existing scenario YAML")
+    advise.add_argument("--config", default="configs/dqn_v_dqfd.yaml")
+    advise.add_argument("--episodes", type=int, default=100, help="Episodes per controller (default 100; under 30 is preliminary)")
+    advise.add_argument("--seed-base", type=int, default=30000)
+    advise.add_argument("--dqn", action="append", default=[], metavar="[LABEL=]CHECKPOINT[@CONFIG]",
+                        help="A DQN trained for THIS junction's demand, as another candidate (label must start with 'dqn')")
+    advise.add_argument("--out-dir", default="advice", help="Where advice.json and the comparison files go")
+
+    tj = sub.add_parser("train-job", help="Train a DQN for one scenario (several seeds, keep the best); writes progress to status.json")
+    tj.add_argument("--scenario", required=True)
+    tj.add_argument("--out-dir", required=True)
+    tj.add_argument("--config", default="configs/dqn_v_dqfd.yaml")
+    tj.add_argument("--episodes", type=int, default=120)
+    tj.add_argument("--seeds", default="0,1,2", help="Comma-separated training seeds; the best on selection seeds is kept")
+
+    serve = sub.add_parser("serve", help="Run the client web application (Signal Studio) on localhost")
+    serve.add_argument("--host", default="127.0.0.1")
+    serve.add_argument("--port", type=int, default=8000)
+    serve.add_argument("--no-browser", action="store_true")
+
+    rep = sub.add_parser("report", help="Render the client report (HTML) from an advice.json")
+    rep.add_argument("--advice", required=True)
+    rep.add_argument("--out", default="report.html")
+
+    intake = sub.add_parser("intake", help="Turn a junction spec (traffic counts, vehicle mix, turns) into a runnable scenario")
+    intake.add_argument("--spec", required=True, help="Junction spec YAML (see configs/examples/junction_example.yaml)")
+    intake.add_argument("--out-dir", help="Where the scenario goes (default: projects/<name>)")
 
     env_check = sub.add_parser(
         "env-check", help="Sanity-check the SUMO/TraCI environment against a config (Week 2)"
@@ -186,7 +219,7 @@ def _train(args) -> int:
     return 0
 
 
-# The density rule tuned on selection seeds (results_tune_actuated); the same settings every comparison uses.
+# The density rule tuned on selection seeds (results/tuning/actuated); the same settings every comparison uses.
 ACTUATED_DEFAULTS = {"min_green": 10.0, "max_green": 40.0, "ratio": 4.0, "gap_queue": 0.0}
 
 
@@ -389,6 +422,85 @@ def _compare(args) -> int:
     return 0
 
 
+def _intake(args) -> int:
+    from traffic_drl import intake
+
+    try:
+        result = intake.build_from_file(args.spec, args.out_dir)
+    except (intake.SpecError, OSError) as e:
+        print(f"intake: {e}", file=sys.stderr)
+        return 2
+    s = result["summary"]
+    print(f"wrote {result['scenario_yaml']} and {result['route_file']}")
+    print(f"demand: {s['vehicles']:.0f} vehicles over {s['minutes']:.0f} minutes, peak load {s['peak_load']:.2f} "
+          "(1.0 = what one lane per road can discharge)")
+    for note in result["advisories"]:
+        print(f"note: {note}")
+    print(f"next: traffic-drl compare --config configs/dqn_v_dqfd.yaml --scenarios {result['scenario_yaml']} "
+          "--controller fixed --controller \"rule=actuated:min=10,max=40,ratio=4,gap=0\" --reference rule")
+    return 0
+
+
+def _advise(args) -> int:
+    from traffic_drl import advisor, intake
+
+    notes, scenario, context = [], args.scenario, None
+    if args.spec:
+        try:
+            built = intake.build_from_file(args.spec, os.path.join(args.out_dir, "scenario"))
+        except (intake.SpecError, OSError) as e:
+            print(f"advise: {e}", file=sys.stderr)
+            return 2
+        scenario, notes, context = built["scenario_yaml"], built["advisories"], built["context"]
+    dqn = {}
+    for item in args.dqn:
+        label, _, ckpt = item.partition("=") if "=" in item.split("@")[0] else ("dqn", "", item)
+        dqn[label] = ckpt
+    advice = advisor.advise(scenario, args.out_dir, config=args.config, episodes=args.episodes,
+                            seed_base=args.seed_base, dqn=dqn, load_notes=notes, context=context)
+    from traffic_drl import report
+
+    report_path = report.write_report(advice, os.path.join(args.out_dir, "report.html"))
+    print()
+    print(advice["table_markdown"])
+    print(advice["headline"])
+    for r in advice["reasons"]:
+        print(f"- {r}")
+    print("Settings:", json.dumps(advice["settings"], indent=2))
+    for c in advice["caveats"]:
+        print(f"note: {c}")
+    print(f"wrote {args.out_dir}/advice.json and {report_path} (open in a browser; print to PDF to share)")
+    return 0
+
+
+def _train_job(args) -> int:
+    from traffic_drl import training_job
+
+    try:
+        result = training_job.run_job(args.scenario, args.out_dir, config_path=args.config, episodes=args.episodes,
+                                      seeds=[int(x) for x in args.seeds.split(",")])
+    except Exception as e:   # status.json already says why; give the log a readable line too
+        print(f"train-job failed: {type(e).__name__}: {e}", file=sys.stderr)
+        return 1
+    if not result:
+        print("train-job: cancelled")
+        return 3
+    ref = result["reference_waiting"]
+    print(f"chosen seed {result['chosen_seed']}: waiting {result['selection_waiting']:.1f} on selection seeds "
+          f"(fixed {ref['fixed']:.1f}, rule {ref['rule']:.1f})")
+    print(f"model: {result['model']}")
+    return 0
+
+
+def _report(args) -> int:
+    from traffic_drl import report
+
+    with open(args.advice) as f:
+        advice = json.load(f)
+    print(f"wrote {report.write_report(advice, args.out)}")
+    return 0
+
+
 def main(argv=None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -429,6 +541,19 @@ def main(argv=None) -> int:
         return _evaluate(args)
     elif args.command == "compare":
         return _compare(args)
+    elif args.command == "intake":
+        return _intake(args)
+    elif args.command == "advise":
+        return _advise(args)
+    elif args.command == "report":
+        return _report(args)
+    elif args.command == "train-job":
+        return _train_job(args)
+    elif args.command == "serve":
+        from traffic_drl.web.server import serve as run_server
+
+        run_server(args.host, args.port, open_browser=not args.no_browser)
+        return 0
     elif args.command == "demo":
         import subprocess
         from pathlib import Path

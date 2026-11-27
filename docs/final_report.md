@@ -224,10 +224,10 @@ My first demand levels (900 and 1,100 vehicles per hour per road) overloaded the
 behaved exactly like the fixed timer. Diagnostic scenarios showed that turning vehicles halve a single lane's capacity: cars going straight 3,025
 vehicles per hour, mixed fleet going straight 3,232, cars with 15% + 15% turns 1,650. The demand was recalibrated to the measured capacity (about
 1,800 vehicles per hour in total, about 450 per road). With turns, at 300 and 400 per road the rule beats the fixed timer; at 500 and 600 they tie
-(`results_compare_kt_calib`). Results for the recalibrated set are in Section 5.1.
+(`results/comparisons/kt_calib`). Results for the recalibrated set are in Section 5.1.
 
 ### 5.5 One model for every pattern
-A single model trained on 12 randomised demand patterns was tested on three scenarios it never saw (`results_compare_general`): tidal 5.9 to 8.6
+A single model trained on 12 randomised demand patterns was tested on three scenarios it never saw (`results/comparisons/general`): tidal 5.9 to 8.6
 (rule 7.2), rush hour 128.3 to 145.1 (rule 126.6), light traffic 0.9 to 1.2 (rule 0.2; waiting per vehicle 6.6 to 9.0 s against 1.6 s). Of 12
 agents, none was better than the rule and 3 were worse. In all four runs the best checkpoint was the one right after copying the rule, so
 further training added nothing. This is a negative result; one specialist model per scenario is kept.
@@ -302,12 +302,12 @@ across patterns; and several junctions together. [Add anything the supervisor su
 | Result | Folder or file |
 |---|---|
 | Per-agent table and figure | `docs/results_final.md`, `figures/report/final_results.png` |
-| Regime map | `results_compare_grid`, `figures/report/regime_map.png` |
-| Benchmark: specialists on cars | `results_compare_dqfd_tidal`, `results_compare_dqfd_rush`, `results_compare_dqh_r2`, `_r4`, `_r8` |
-| Benchmark: Kathmandu-style | `results_compare_dqk_tidal`, `_rush`, `_peak`, `results_compare_kt`, `results_compare_kt_calib` |
-| Generalist | `results_sweep_vg`, `results_compare_general` |
-| Training sweeps | `results_sweep_v_*`, `results_sweep_vs_*`, `results_sweep_vt_*`, `results_sweep_vd_*`, `results_sweep_vk_*`, `results_sweep_vh_*` |
-| Baseline tuning | `results_tune_actuated` |
-| Early comparison (first fair test) | `results_compare_v1` |
+| Regime map | `results/comparisons/grid`, `figures/report/regime_map.png` |
+| Benchmark: specialists on cars | `results/comparisons/dqfd_tidal`, `results/comparisons/dqfd_rush`, `results/comparisons/dqh_r2`, `_r4`, `_r8` |
+| Benchmark: Kathmandu-style | `results/comparisons/dqk_tidal`, `_rush`, `_peak`, `results/comparisons/kt`, `results/comparisons/kt_calib` |
+| Generalist | `results/sweeps/vg`, `results/comparisons/general` |
+| Training sweeps | `results/sweeps/v_*`, `results/sweeps/vs_*`, `results/sweeps/vt_*`, `results/sweeps/vd_*`, `results/sweeps/vk_*`, `results/sweeps/vh_*` |
+| Baseline tuning | `results/tuning/actuated` |
+| Early comparison (first fair test) | `results/comparisons/v1` |
 | Final agents and manifest | `models/` |
 | Detailed experiment log | `logs/week-06.md` |

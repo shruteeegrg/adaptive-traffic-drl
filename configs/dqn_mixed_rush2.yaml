@@ -1,10 +1,10 @@
 # Mixed training with rush hour over-sampled: the scenario cycle is
 # low, rush, tidal, rush, so half of all training episodes are rush hour.
-# Last mixed sweep (results_sweep_mixed_g99): low traffic and tidal fine, rush hour 280-370
+# Last mixed sweep (results/sweeps/mixed_g99): low traffic and tidal fine, rush hour 280-370
 # vs ~140 for fixed-time. Hypothesis: rush hour gets too little practice (1/3 of episodes).
 # Evaluation scores the unique scenarios; the sweep logs per-scenario waiting.
 # Run:
-#   traffic-drl sweep --config configs/dqn_mixed_rush2.yaml --out-dir results_sweep_mixed_rush2
+#   traffic-drl sweep --config configs/dqn_mixed_rush2.yaml --out-dir results/sweeps/mixed_rush2
 extends: dqn_mixed_g99.yaml
 name: intersection_dqn_mixed_rush2
 

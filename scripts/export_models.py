@@ -17,15 +17,15 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CONFIG = "configs/dqn_v_dqfd.yaml"     # the state design shared by every final agent
 # (model name, results folder of the sweep, scenario yaml it was trained on)
 MODELS = [
-    ("dqfd_tidal", "results_sweep_vd_tidal", "configs/scenarios/tidal.yaml"),
-    ("dqfd_rush", "results_sweep_vd_rush", "configs/scenarios/rush_hour.yaml"),
-    ("dqh_r2", "results_sweep_vh_r2", "configs/scenarios/grid/grid_d800_r2.yaml"),
-    ("dqh_r4", "results_sweep_vh_r4", "configs/scenarios/grid/grid_d800_r4.yaml"),
-    ("dqh_r8", "results_sweep_vh_r8", "configs/scenarios/grid/grid_d800_r8.yaml"),
-    ("dqk_tidal", "results_sweep_vk_tidal", "configs/scenarios/tidal_kt.yaml"),
-    ("dqk_rush", "results_sweep_vk_rush", "configs/scenarios/rush_hour_kt.yaml"),
-    ("dqk_peak", "results_sweep_vk_peak", "configs/scenarios/kathmandu_peak.yaml"),
-    ("gen", "results_sweep_vg", "configs/scenarios/pool (12 randomised patterns)"),
+    ("dqfd_tidal", "results/sweeps/vd_tidal", "configs/scenarios/tidal.yaml"),
+    ("dqfd_rush", "results/sweeps/vd_rush", "configs/scenarios/rush_hour.yaml"),
+    ("dqh_r2", "results/sweeps/vh_r2", "configs/scenarios/grid/grid_d800_r2.yaml"),
+    ("dqh_r4", "results/sweeps/vh_r4", "configs/scenarios/grid/grid_d800_r4.yaml"),
+    ("dqh_r8", "results/sweeps/vh_r8", "configs/scenarios/grid/grid_d800_r8.yaml"),
+    ("dqk_tidal", "results/sweeps/vk_tidal", "configs/scenarios/tidal_kt.yaml"),
+    ("dqk_rush", "results/sweeps/vk_rush", "configs/scenarios/rush_hour_kt.yaml"),
+    ("dqk_peak", "results/sweeps/vk_peak", "configs/scenarios/kathmandu_peak.yaml"),
+    ("gen", "results/sweeps/vg", "configs/scenarios/pool (12 randomised patterns)"),
 ]
 
 

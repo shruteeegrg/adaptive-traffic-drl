@@ -1,13 +1,13 @@
 # dqn_v_teacher.yaml made to hold on to what the teacher showed (learning from demonstrations, in the spirit of
-# DQfD, Hester et al. 2018). In the teacher sweeps (results_sweep_vt_tidal) two of four seeds stayed good for all
+# DQfD, Hester et al. 2018). In the teacher sweeps (results/sweeps/vt_tidal) two of four seeds stayed good for all
 # 120 episodes and two drifted away, a pattern that matches the teacher's transitions being overwritten in the
 # replay buffer after about 55 episodes. Here:
 #   the teacher's transitions go into a FROZEN buffer that is never overwritten;
 #   a quarter of every training batch is drawn from it;
 #   a large-margin loss keeps the teacher's action ranked above the other action on those rows, so the network
 #   cannot drift off the teacher's behaviour for free while ordinary Q-learning still tries to improve on it.
-#   traffic-drl sweep --config configs/dqn_v_dqfd.yaml --scenario configs/scenarios/tidal.yaml --out-dir results_sweep_vd_tidal
-#   traffic-drl sweep --config configs/dqn_v_dqfd.yaml --scenario configs/scenarios/rush_hour.yaml --out-dir results_sweep_vd_rush
+#   traffic-drl sweep --config configs/dqn_v_dqfd.yaml --scenario configs/scenarios/tidal.yaml --out-dir results/sweeps/vd_tidal
+#   traffic-drl sweep --config configs/dqn_v_dqfd.yaml --scenario configs/scenarios/rush_hour.yaml --out-dir results/sweeps/vd_rush
 extends: dqn_v_teacher.yaml
 name: intersection_dqn_v_dqfd
 

@@ -91,8 +91,9 @@ def resolve_scenario(name: str, config_path: str) -> str:
     raise SystemExit(f"scenario '{name}' not found (tried {name} and {candidate})")
 
 
-def run_comparison(config_path, scenarios, controllers, episodes=100, seed_base=30000, out_dir="results_compare",
-                   reference=None, threshold=0.05, min_abs=None, metric=PRIMARY, env_factory=None, log=print):
+def run_comparison(config_path, scenarios, controllers, episodes=100, seed_base=30000, out_dir="results/compare",
+                   reference=None, threshold=0.05, min_abs=None, metric=PRIMARY, env_factory=None, log=print,
+                   episode_rows_out=None):
     from traffic_drl.agent import evaluate
     from traffic_drl.config import load_config
 
@@ -152,6 +153,8 @@ def run_comparison(config_path, scenarios, controllers, episodes=100, seed_base=
                             "verdict": verdict(stats.mean(ref_vals), m, welch["p"], threshold, min_abs)})
             summary.append(row)
 
+    if episode_rows_out is not None:        # callers that need the per-episode numbers (e.g. the advisor)
+        episode_rows_out.extend(episode_rows)
     _write_csv(os.path.join(out_dir, "compare_episodes.csv"), episode_rows)
     _write_csv(os.path.join(out_dir, "compare_summary.csv"), summary)
     table = markdown_table(summary, reference, threshold, min_abs, episodes, seed_base, metric)

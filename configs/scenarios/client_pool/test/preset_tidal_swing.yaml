@@ -1,0 +1,3 @@
+name: preset_tidal_swing
+description: web app starting point, default mix and turning
+route_file: preset_tidal_swing.rou.xml

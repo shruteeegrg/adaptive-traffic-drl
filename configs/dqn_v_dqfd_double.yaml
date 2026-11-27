@@ -1,6 +1,6 @@
 # The DQfD recipe (dqn_v_dqfd.yaml) with Double DQN only and 4 seeds, for single-scenario runs on the regime-map
 # cells where the tuned rule leaves the most waiting (the heavy row of the grid, 800 veh/h per approach).
-#   traffic-drl sweep --config configs/dqn_v_dqfd_double.yaml --scenario configs/scenarios/grid/grid_d800_r4.yaml --out-dir results_sweep_vh_r4
+#   traffic-drl sweep --config configs/dqn_v_dqfd_double.yaml --scenario configs/scenarios/grid/grid_d800_r4.yaml --out-dir results/sweeps/vh_r4
 extends: dqn_v_dqfd.yaml
 name: intersection_dqn_v_dqfd_double
 

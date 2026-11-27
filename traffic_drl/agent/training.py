@@ -1,4 +1,4 @@
-"""Env-agnostic training/evaluation loops for the Q-table agent.
+"""Env-agnostic training/evaluation loops for the Q-table and DQN agents.
 
 Works with anything exposing reset()/step(action)/close() -- `TraciEnv`
 for real runs, `SimpleQueueEnv` for fast convergence checks -- so the
@@ -10,6 +10,14 @@ import math
 import os
 
 
+def bootstrap_done(agent, done: bool, info: dict) -> bool:
+    """The `done` flag to store for learning. A time-limit cut-off (info["truncated"]) is not a real terminal
+    state; agents that set `bootstrap_on_timeout` keep bootstrapping from it. Default: unchanged behaviour."""
+    if done and (info or {}).get("truncated") and getattr(agent, "bootstrap_on_timeout", False):
+        return False
+    return done
+
+
 def run_episode(env, agent, train: bool = True, max_steps: int = None) -> float:
     """Run one episode, returning the accumulated reward. With train=False
     the agent acts greedily and its table is left untouched."""
@@ -18,9 +26,9 @@ def run_episode(env, agent, train: bool = True, max_steps: int = None) -> float:
     steps = 0
     while True:
         action = agent.act(state, greedy=not train)
-        next_state, reward, done, _ = env.step(action)
+        next_state, reward, done, info = env.step(action)
         if train:
-            agent.update(state, action, reward, next_state, done)
+            agent.update(state, action, reward, next_state, bootstrap_done(agent, done, info))
         total += reward
         state = next_state
         steps += 1
@@ -113,10 +121,11 @@ def pretrain_from_teacher(env, agent, teacher, episodes: int, noise: float = 0.2
         while True:
             explore = rng.random() < noise
             action = int(rng.integers(agent.n_actions)) if explore else teacher.act(state, greedy=True)
-            next_state, reward, done, _ = env.step(action)
+            next_state, reward, done, info = env.step(action)
+            stored_done = bootstrap_done(agent, done, info)
             if getattr(agent, "demo_fraction", 0.0) > 0 and hasattr(agent, "add_demo"):
-                agent.add_demo(state, action, reward, next_state, done, expert=not explore)
-            agent.update(state, action, reward, next_state, done)
+                agent.add_demo(state, action, reward, next_state, stored_done, expert=not explore)
+            agent.update(state, action, reward, next_state, stored_done)
             state = next_state
             steps += 1
             if done or (max_steps and steps >= max_steps):
@@ -153,7 +162,7 @@ def maybe_pretrain(env, agent, config: dict, verbose: bool = False, make_teacher
 
 def train_agent(env, agent, episodes: int, max_steps: int = None, log_path: str = None, verbose: bool = True,
                 eval_every: int = None, eval_episodes: int = 2, best_path: str = None, history: dict = None,
-                eval_at_start: bool = False):
+                eval_at_start: bool = False, on_episode=None):
     """Train any agent with act/update/decay_epsilon (QTableAgent or
     DQNAgent) for `episodes` episodes; returns the per-episode reward list
     and, if `log_path` is given, writes it as CSV (episode, reward,
@@ -164,7 +173,11 @@ def train_agent(env, agent, episodes: int, max_steps: int = None, log_path: str 
     With `eval_every`, the greedy policy is evaluated on unseen seeds every
     that-many episodes (and after the last); if `best_path` is given the
     best-scoring agent so far is saved there. `history`, if a dict, is
-    filled with best_score / best_episode / evals."""
+    filled with best_score / best_episode / evals.
+
+    `on_episode`, if given, is called after every episode with {episode, episodes, reward, epsilon, loss,
+    metrics, eval (that episode's evaluation or None), best_episode}; returning True stops training early
+    (a background job uses it to report progress and to honour a cancel request)."""
     best_score, best_episode, evals = float("-inf"), None, []
     rewards, epsilons, losses, metrics = [], [], [], []
     if eval_at_start and eval_every:        # e.g. the policy just distilled from a teacher: a candidate "best" too
@@ -201,6 +214,12 @@ def train_agent(env, agent, episodes: int, max_steps: int = None, log_path: str 
             extra = f"states={len(agent.q)}" if hasattr(agent, "q") else f"loss={losses[-1]}"
             print(f"episode {ep + 1}/{episodes}  reward={rewards[-1]:.1f}  "
                   f"epsilon={epsilons[-1]:.3f}  {extra}")
+        if on_episode is not None:
+            just_evaluated = evals[-1] if evals and evals[-1]["episode"] == ep + 1 else None
+            if on_episode({"episode": ep + 1, "episodes": episodes, "reward": rewards[-1], "epsilon": epsilons[-1],
+                           "loss": losses[-1], "metrics": metrics[-1], "eval": just_evaluated,
+                           "best_episode": best_episode}):
+                break
 
     if log_path:
         os.makedirs(os.path.dirname(log_path) or ".", exist_ok=True)

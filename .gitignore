@@ -29,3 +29,9 @@ data/raw/
 .DS_Store
 .vscode/
 .idea/
+
+# Client projects and training jobs (traffic-drl train-job / the app)
+projects/
+
+# Training run outputs (checkpoints, logs); the chosen model is copied into models/
+runs/
